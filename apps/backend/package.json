@@ -6,7 +6,7 @@
   "scripts": {
     "build": "nest build",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/src/main.js",
+    "start:prod": "node dist/apps/backend/src/main.js",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {

@@ -5,8 +5,10 @@ Infraestructura local en Docker. Contenedor **`pyrite`** (nombre personalizado) 
 ## Servicios
 | Servicio | Contenedor | Puerto | Imagen |
 |---|---|---|---|
-| PostgreSQL | `pyrite-postgres` | 5432 | postgres:17 |
+| PostgreSQL | `pyrite-postgres` | 5433 | postgres:17 |
 | Redis | `pyrite-redis` | 6379 | redis:7-alpine |
+
+> El host port de Postgres es **5433** (el 5432 queda reservado para otros proyectos locales que ya lo usan). Dentro de la red Docker sigue siendo 5432.
 
 ## Comandos
 ```bash

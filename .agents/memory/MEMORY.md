@@ -9,13 +9,16 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 -->
 
 ## Last session
-- 2026-08-29: <one line, what actually happened>
+- 2026-08-31: Fase 0 completa (commit base, READMEs ES/EN). Spec #1 backend skeleton activo en rama feature/backend-skeleton: Nest + Drizzle + Redis + /health, probado en vivo (200 OK).
 
 ## Next up
-- <concrete next action, tied to a spec ID if applicable>
+- Spec #2: esqueleto frontend (Next.js) - pendiente de abrir.
+- Validar el esqueleto backend y ajustar; al cerrar, merge a main y borrar rama.
 
 ## Open decisions (unresolved, blocking or not)
-- <question> - <options being weighed, if any>
+- (ninguna bloqueante)
 
 ## Watch / don't forget
 - Never use emojis or em dashes (—) in anything written for the project (docs, READMEs, commits, UI copy). Plain ASCII punctuation only.
+- Host port de Postgres es 5433: otros proyectos locales (organizador-db) ocupan el 5432 del host. No volver a mapear 5432.
+- El volumen postgres-data se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.

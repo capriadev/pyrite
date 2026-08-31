@@ -22,3 +22,5 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 - Never use emojis or em dashes (—) in anything written for the project (docs, READMEs, commits, UI copy). Plain ASCII punctuation only.
 - Host port de Postgres es 5433: otros proyectos locales (organizador-db) ocupan el 5432 del host. No volver a mapear 5432.
 - El volumen postgres-data se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.
+- NO levantar servicios ni infraestructura (docker, dev servers) sin pedido explícito del usuario.
+- drizzle vive en la raíz del repo (/drizzle/schema.ts + /drizzle/migrations + drizzle.config.ts en raíz), no dentro de apps/backend. El build del backend usa rootDir "../.." y emite a dist/apps/backend/src/main.js.

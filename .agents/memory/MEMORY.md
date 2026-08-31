@@ -24,3 +24,4 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 - El volumen postgres-data se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.
 - NO levantar servicios ni infraestructura (docker, dev servers) sin pedido explícito del usuario.
 - drizzle vive en la raíz del repo (/drizzle/schema.ts + /drizzle/migrations + drizzle.config.ts en raíz), no dentro de apps/backend. El build del backend usa rootDir "../.." y emite a dist/apps/backend/src/main.js.
+- Runtime decidido: Node 24.20.0 gestionado con nvm (.nvmrc en raíz, engines >=24.20 <25). Cambiar de major solo con decisión explícita del usuario.

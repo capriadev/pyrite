@@ -13,17 +13,19 @@ Single source of truth for how Pyrite is built. Update on every trade-off. Mark 
 | Layer | Tech | Notes |
 |---|---|---|
 | Interfaz (`apps/frontend`) | Next.js + TypeScript + Tailwind CSS | Decoupled: components, hooks, events. What the user uses. |
+| Bot Discord (`apps/bot-discord`) | TBD (likely discord.js + TypeScript) | Talks to backend only via `gateway/`, same rule as frontend. Not started yet - folder exists, empty for now. |
 | Backend (`apps/backend`) | Nest.js + TypeScript | Modular by responsibility (see "Backend layers" below). Runs alone/isolated. |
 | DB | PostgreSQL + Redis | Provided by Docker. Postgres = source of truth; Redis = cache/perf. |
 | Container | Docker container named `pyrite` | `docker/` folder holds compose + instances. |
 | ORM | Drizzle (typed) | Candidates considered: Prisma (more known), Kysely (newer). |
 | Config | In-DB, not `.env` | Settings/vars stored in DB, loaded at boot. Allows rotating providers/keys/models at runtime. |
+| Runtime | Node.js 24.20.0 via nvm | Pinned by `.nvmrc` at repo root. Version managed with nvm, not system-wide installs. |
 | Windows startup | `node-windows` service (or NSSM) | Backend runs alone at Windows boot, even before login. Node can do this; Rust/Go only needed for extreme volume/CPU, not startup. |
 
 ### Backend layers (apps/backend/src) - strict responsibilities
 - `dal/` - the ONLY layer that talks to the database. All queries/DB access concentrated here; no queries anywhere else (bll, services, gateway never touch DB directly).
 - `bll/` - ALL business logic. Domain rules live here; consumed by gateway; uses dal for persistence. No HTTP, no DB access of its own.
-- `gateway/` - realtime APIs (HTTP/WS). The ONLY communication medium between frontend and backend: the web talks exclusively through this, dynamic and in real time. No business logic inside.
+- `gateway/` - realtime APIs (HTTP/WS). The ONLY communication medium between any client app (`apps/frontend`, `apps/bot-discord`) and the backend: no client talks to `bll/` or `dal/` directly. No business logic inside.
 - `services/` - very specific internal services (shared, cross-cutting app-level helpers). Naming note: these are internal; do not confuse with "servicios satelitales" (external), which live in `satellite-services/`.
 - `integrations/` - adapters for external world: future satellite-services adapters (repo-root `satellite-services/`) and `providers/` containing `<proveedor>.client.ts` files that validate/consume external APIs (e.g. AI providers). Support validators live here too. Core never imports satellite code directly - only through these adapters.
 - `config/` - typed config loaded at boot (in-DB config lands here later).

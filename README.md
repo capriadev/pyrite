@@ -52,7 +52,8 @@ Core feature from day 1:
 - Optional physical layer (USB key) in the future.
 
 ## Requirements
-- Node.js >= 22
+- nvm (Node Version Manager)
+- Node.js 24.20.0 (the repo ships a `.nvmrc`: `nvm install` + `nvm use` activates it)
 - Docker (Docker Desktop)
 - rclone (only if using cloud backups)
 

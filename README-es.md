@@ -52,7 +52,8 @@ Feature core desde el día 1:
 - Capa física opcional (USB key) a futuro.
 
 ## Requisitos
-- Node.js >= 22
+- nvm (Node Version Manager)
+- Node.js 24.20.0 (el repo incluye `.nvmrc`: `nvm install` + `nvm use` lo activa)
 - Docker (Docker Desktop)
 - rclone (solo si usás backups a cloud)
 

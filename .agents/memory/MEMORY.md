@@ -18,4 +18,4 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 - <question> - <options being weighed, if any>
 
 ## Watch / don't forget
-- <thing that will bite you if forgotten - not a full errors/ post-mortem, just a flag>
+- Never use emojis or em dashes (—) in anything written for the project (docs, READMEs, commits, UI copy). Plain ASCII punctuation only.

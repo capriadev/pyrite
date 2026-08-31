@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "target": "ES2022",
     "lib": ["ES2022"],
     "declaration": false,
@@ -13,7 +13,6 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "../..",
-    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strict": true,

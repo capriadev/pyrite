@@ -13,12 +13,20 @@ Single source of truth for how Pyrite is built. Update on every trade-off. Mark 
 | Layer | Tech | Notes |
 |---|---|---|
 | Interfaz (`apps/frontend`) | Next.js + TypeScript + Tailwind CSS | Decoupled: components, hooks, events. What the user uses. |
-| Backend (`apps/backend`) | Nest.js + TypeScript | Modular by responsibility: `dal/`, `bll/`, `gateway/`, `integrations/`, `services/`. Runs alone/isolated. |
+| Backend (`apps/backend`) | Nest.js + TypeScript | Modular by responsibility (see "Backend layers" below). Runs alone/isolated. |
 | DB | PostgreSQL + Redis | Provided by Docker. Postgres = source of truth; Redis = cache/perf. |
 | Container | Docker container named `pyrite` | `docker/` folder holds compose + instances. |
 | ORM | Drizzle (typed) | Candidates considered: Prisma (more known), Kysely (newer). |
 | Config | In-DB, not `.env` | Settings/vars stored in DB, loaded at boot. Allows rotating providers/keys/models at runtime. |
 | Windows startup | `node-windows` service (or NSSM) | Backend runs alone at Windows boot, even before login. Node can do this; Rust/Go only needed for extreme volume/CPU, not startup. |
+
+### Backend layers (apps/backend/src) - strict responsibilities
+- `dal/` - the ONLY layer that talks to the database. All queries/DB access concentrated here; no queries anywhere else (bll, services, gateway never touch DB directly).
+- `bll/` - ALL business logic. Domain rules live here; consumed by gateway; uses dal for persistence. No HTTP, no DB access of its own.
+- `gateway/` - realtime APIs (HTTP/WS). The ONLY communication medium between frontend and backend: the web talks exclusively through this, dynamic and in real time. No business logic inside.
+- `services/` - very specific internal services (shared, cross-cutting app-level helpers). Naming note: these are internal; do not confuse with "servicios satelitales" (external), which live in `satellite-services/`.
+- `integrations/` - adapters for external world: future satellite-services adapters (repo-root `satellite-services/`) and `providers/` containing `<proveedor>.client.ts` files that validate/consume external APIs (e.g. AI providers). Support validators live here too. Core never imports satellite code directly - only through these adapters.
+- `config/` - typed config loaded at boot (in-DB config lands here later).
 
 ### Sidecars (own code, OS-level control)
 - Rust or Python **required** for Spotify volume control (Windows) - what `spoti-pobre` does today. Smallest possible sidecar.

@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+dist/
+build/
+.next/
+out/
+coverage/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# local backup config (user-specific, copy from backup.config.example.ps1)
+backup.config.ps1
+
+# docker data volumes
+docker/data/
+docker/postgres-data/
+docker/redis-data/
+
+# database backups
+backup_*.sql
+*.sql.bak
+
+# logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# temp (cosas temporales del workspace)
+temp/
+_backups/

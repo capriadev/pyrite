@@ -1,0 +1,45 @@
+{
+  "name": "pyrite",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pyrite - personal local-first system. Interfaz (Next.js) + Backend (Nest.js) + Postgres/Redis en Docker.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n frontend,backend -c blue,green \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "dev:backend": "npm run start:dev --workspace=apps/backend",
+    "dev:bot": "npm run start:dev --workspace=apps/bot-discord",
+
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "npm run build --workspace=apps/frontend",
+    "build:backend": "npm run build --workspace=apps/backend",
+    "build:bot": "npm run build --workspace=apps/bot-discord",
+
+    "start:frontend": "npm run start --workspace=apps/frontend",
+    "start:backend": "npm run start:prod --workspace=apps/backend",
+
+    "tsc": "npm run tsc --workspaces --if-present",
+
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f postgres redis",
+
+    "orm": "npm run orm:generate",
+    "orm:generate": "drizzle-kit generate --config=apps/backend/drizzle.config.ts",
+    "orm:migrate": "drizzle-kit migrate --config=apps/backend/drizzle.config.ts",
+    "orm:push": "drizzle-kit push --config=apps/backend/drizzle.config.ts",
+    "orm:studio": "drizzle-kit studio --config=apps/backend/drizzle.config.ts",
+
+    "back": "powershell -ExecutionPolicy Bypass -File ./backup.ps1"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

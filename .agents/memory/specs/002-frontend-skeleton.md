@@ -25,6 +25,3 @@ Stand up `apps/frontend` as a runnable Next.js (App Router) application with TS 
 - [ ] `npm run tsc` passes with zero errors in both workspaces (strict).
 - [ ] Folder structure matches architecture.md (components/hooks/lib split, assets subfolders present).
 - [ ] Root scripts (`dev:frontend`, `build:frontend`, `tsc`) work from repo root.
-
-## Status
-active

@@ -29,6 +29,3 @@ Stand up `apps/backend` as a runnable Nest.js application with the layered struc
 - [ ] `npm run tsc` passes with zero errors (strict).
 - [ ] `apps/backend/src` contains the layer folders from architecture.md; no business logic inside gateway.
 - [ ] Root scripts (`dev:backend`, `build:backend`, `tsc`) work from repo root.
-
-## Status
-completed

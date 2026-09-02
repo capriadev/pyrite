@@ -33,7 +33,7 @@ Single source of truth for how Pyrite is built. Update on every trade-off. Mark 
 ### Sidecars (own code, OS-level control)
 - Rust or Python **required** for Spotify volume control (Windows) - what `spoti-pobre` does today. Smallest possible sidecar.
 - Lives under `sidecars/`. Not vendorized software - code you write and maintain.
-- Spotify construction to be re-evaluated at build time: planned direction is a dual-mode service (integrated in backend / detached local agent with its own SQLite, WS to backend only while the frontend UI is open, for the split LAN setup: frontend + user on the main PC, backend on the home server).
+- Spotify construction to be defined at build time. Open question: whether the dual-mode service (integrated in backend / detached local agent with its own SQLite, WS to backend only while the frontend UI is open, for the split LAN setup: frontend + user on the main PC, backend on the home server) is achievable without Rust/Python, or if the sidecar route above is still needed.
 
 ### Frontend design system
 - Component architecture: "Atomic Lazy Design". Minimal take on Atomic Design: three layers only - atoms, molecules, organisms (small / medium / complete). Separates without over-fragmenting. No further subdivision unless practice proves it necessary.

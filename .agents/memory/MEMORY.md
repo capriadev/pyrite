@@ -9,11 +9,11 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 -->
 
 ## Last session
-- 2026-08-31: Fase 0 completa (commit base, READMEs ES/EN). Spec #1 backend skeleton activo en rama feature/backend-skeleton: Nest + Drizzle + Redis + /health, probado en vivo (200 OK).
+- 2026-09-01: Spec #1 backend skeleton cerrado y mergeado a main (rama borrada). Runtime Node 24.20.0 via nvm. Decisiones de frontend registradas en architecture.md (Atomic Lazy Design, theming por tokens, sourcing de componentes). features.md acumula backlog (#2-#5).
 
 ## Next up
-- Spec #2: esqueleto frontend (Next.js) - pendiente de abrir.
-- Validar el esqueleto backend y ajustar; al cerrar, merge a main y borrar rama.
+- Spec #2: esqueleto frontend (Next.js + Atomic Lazy Design + theming por tokens). Pendiente de abrir.
+- features.md ahora acumula features planificadas (#2-#5); spec se abre cuando la feature esta lista para desarrollar.
 
 ## Open decisions (unresolved, blocking or not)
 - (ninguna bloqueante)

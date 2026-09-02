@@ -33,6 +33,18 @@ Single source of truth for how Pyrite is built. Update on every trade-off. Mark 
 ### Sidecars (own code, OS-level control)
 - Rust or Python **required** for Spotify volume control (Windows) - what `spoti-pobre` does today. Smallest possible sidecar.
 - Lives under `sidecars/`. Not vendorized software - code you write and maintain.
+- Spotify construction to be re-evaluated at build time: planned direction is a dual-mode service (integrated in backend / detached local agent with its own SQLite, WS to backend only while the frontend UI is open, for the split LAN setup: frontend + user on the main PC, backend on the home server).
+
+### Frontend design system
+- Component architecture: "Atomic Lazy Design". Minimal take on Atomic Design: three layers only - atoms, molecules, organisms (small / medium / complete). Separates without over-fragmenting. No further subdivision unless practice proves it necessary.
+- Theming: change colors, fonts, sounds, component variants and layout element positions/order without touching code.
+  - `theme/tokens.css`: single source of design tokens, consumed by all `ui/`; never hardcoded per component.
+  - `theme/presets/`: full theme presets (built-in + custom), swappable at runtime.
+  - Fonts and sounds load as pluggable extras, same mechanism as presets.
+  - Dark/light + custom themes from day one via tokens.
+  - All preferences persist in DB (config-in-DB). Settings UI exposes an appearance section (theme/font/custom) and a sounds section.
+- Multi-language: Spanish and English only. Implementation library TBD (blocks nothing).
+- Component sourcing policy: before installing any UI library or kit, evaluate copying/adapting the specific fragment needed instead of pulling a whole dependency (full libraries bring their own theming, which conflicts with the token system above). Even with pre-designed libraries, the approach is to adapt and limit what gets used. When a library IS justified, prefer copy-based approaches (shadcn/ui style: component code lives in the repo, not an opaque package) - same principle as "don't fork/copy-paste without customizing", applied to third-party UI.
 
 ### Satellite services (vendorized, external processes)
 - Third-party software (Cobalt, spotdl, open-notebook) installed inside the repo but run as independent processes.

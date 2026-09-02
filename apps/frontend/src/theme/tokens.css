@@ -1,0 +1,33 @@
+/*
+ * Pyrite design tokens - single source of truth.
+ * Consumed by everything under ui/; never hardcoded in components.
+ * Theme presets in theme/presets/ override these at runtime.
+ */
+:root {
+  --color-background: #ffffff;
+  --color-foreground: #171717;
+  --color-muted: #6b7280;
+  --color-ok: #15803d;
+  --color-error: #b91c1c;
+  --color-accent: #b45309;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0a0a0a;
+    --color-foreground: #ededed;
+    --color-muted: #9ca3af;
+    --color-ok: #4ade80;
+    --color-error: #f87171;
+    --color-accent: #fbbf24;
+  }
+}
+
+@theme inline {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-muted: var(--color-muted);
+  --color-ok: var(--color-ok);
+  --color-error: var(--color-error);
+  --color-accent: var(--color-accent);
+}

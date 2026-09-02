@@ -12,9 +12,10 @@ This file is an index, entry point, and project methodology. It does not contain
 | `.agents/memory/architecture.md` | Layered stack, Docker, Windows boot, config-in-DB | Before touching architecture/stack |
 | `.agents/memory/features.md` | SDD index (`last_id` + `#N`) and specs | Before implementing any feature |
 | `.agents/memory/errors/` | Resolved conflict stories (router `_INDEX.md`) | When a known problem appears |
+| `.agents/memory/discarded/` | Evaluated-and-abandoned decisions (router `_INDEX.md`) | When considering re-attempting something, or before committing to a similar approach |
 | `.agents/memory/specs/` | Active specs | Before writing code |
 | `.agents/skills/` | Project skills of Pyrite | When a skill applies |
-| `.agents/skills/pyrite-orm/` | ⚠️ Mandatory before touching DB/schema - safety rules, destructive-change flow | Before ANY `npm run orm*` command or schema edit |
+| `.agents/skills/pyrite-orm/` | Mandatory before touching DB/schema - safety rules, destructive-change flow | Before ANY `npm run orm*` command or schema edit |
 | `docs/PHILOSOPHY.md` | Product philosophy and vision (reference, human-facing) | When identity/vision is needed; not loaded every iteration |
 
 > Memory lives in `.agents/memory/` and is written **in English, short, maintained by the agent and partitioned**.
@@ -87,6 +88,27 @@ This file is an index, entry point, and project methodology. It does not contain
 
   ## Tags
   <ts> <windows> <docker> ...
+  ```
+
+### Discarded - `.agents/memory/discarded/`
+- Create a file when a decision, integration, or feature was evaluated (before or after implementation) and abandoned, and the reasoning has future reference value - avoids re-litigating or re-attempting the same idea blindly.
+- Naming: `<descriptive-slug>.md`. Register it in `discarded/_INDEX.md`.
+- Purpose: document what was tried and why it didn't stick - "we considered/built X, here's why it's not in Pyrite".
+- Format:
+  ```markdown
+  # <Discarded item>
+
+  ## What was tried
+  <what was evaluated or implemented>
+
+  ## Why it was discarded
+  <the actual reason - technical, product, complexity, etc.>
+
+  ## Alternative chosen
+  <what replaced it, if anything>
+
+  ## Tags
+  <ts> <finance> <integration> ...
   ```
 
 ### Languages / conventions

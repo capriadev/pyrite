@@ -37,9 +37,6 @@ Mechanical procedure to open a new spec, in any project using a features-index +
    ## Acceptance criteria
    - [ ] <verifiable condition>
    - [ ] <verifiable condition>
-
-   ## Status
-   pending
 ```
 
 4. **Register in the index**, matching its existing line format exactly (read 1-2 existing entries first, don't assume the format). Update the `last_id:` line in the same edit — never one without the other.

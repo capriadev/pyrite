@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit",
+    "doctor": "react-doctor --no-telemetry"
   },
   "engines": {
     "node": ">=24.20.0 <25"
@@ -21,6 +22,7 @@
     "@types/node": "^26.4.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "react-doctor": "^0.9.13",
     "tailwindcss": "^4",
     "typescript": "^7.0.2"
   }

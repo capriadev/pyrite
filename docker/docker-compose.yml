@@ -1,6 +1,7 @@
 # Docker Compose - Pyrite
 # Contenedor `pyrite` con instancias internas (Postgres + Redis).
 # El backend (apps/api) corre apuntando a estos servicios.
+name: pyrite
 
 services:
   postgres:

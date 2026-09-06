@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import { APP_CONFIG, type AppConfig } from '../config/configuration';
 import * as schema from '../../../../drizzle/schema';
 import { DRIZZLE_DB, type DrizzleDb } from './drizzle.provider';
+import { SettingsRepository } from './settings.repository';
 
 class PgPoolHolder implements OnApplicationShutdown {
   constructor(readonly pool: Pool) {}
@@ -35,8 +36,9 @@ const PG_POOL = Symbol('PG_POOL');
       useFactory: (pool: Pool): DrizzleDb => drizzle(pool, { schema }),
     },
     PgPoolHolder,
+    SettingsRepository,
   ],
-  exports: [DRIZZLE_DB],
+  exports: [DRIZZLE_DB, SettingsRepository],
 })
 export class DalModule {}
 

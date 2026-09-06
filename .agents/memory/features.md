@@ -9,6 +9,6 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 -->
 
 #2 Frontend skeleton - Next.js App Router + TS strict + Tailwind v4 in apps/frontend, gateway api client, status view [spec: 002-frontend-skeleton.md] [status: completed]
-#3 Config en DB - settings/keys del sistema en DB cargadas al boot, sin .env [status: pending]
+#3 Config en DB - settings/keys del sistema en DB cargadas al boot, sin .env [spec: 003-config-db.md] [status: active]
 #4 Auth core - login passphrase, Argon2 encadenado, esquema crypto unico [status: pending]
 #5 Startup screen - sonido de inicio + mensaje de voz rotativo (ElevenLabs, 2-3 variantes) [status: pending]

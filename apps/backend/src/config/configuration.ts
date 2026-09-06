@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 export interface AppConfig {
   port: number;
   db: {
@@ -14,22 +16,22 @@ export interface AppConfig {
 }
 
 /**
- * Local defaults matching docker/docker-compose.yml. Real configuration
- * (including integration keys) will be loaded from the DB at boot in a
- * later spec; no .env files are used in Pyrite.
+ * Backend infrastructure config, read from the backend .env with local
+ * defaults for dev. The Pyrite port block is 30xxx (prod 30000-30019,
+ * test/other 301xx).
  */
 export const appConfig: AppConfig = {
-  port: 3001,
+  port: Number(process.env.BACKEND_PORT ?? 30001),
   db: {
-    host: '127.0.0.1',
-    port: 5433,
-    user: 'pyrite',
-    password: 'pyrite',
-    database: 'pyrite',
+    host: process.env.DB_HOST ?? '127.0.0.1',
+    port: Number(process.env.DB_PORT ?? 30010),
+    user: process.env.DB_USER ?? 'pyrite',
+    password: process.env.DB_PASSWORD ?? 'pyrite',
+    database: process.env.DB_NAME ?? 'pyrite',
   },
   redis: {
-    host: '127.0.0.1',
-    port: 6379,
+    host: process.env.REDIS_HOST ?? '127.0.0.1',
+    port: Number(process.env.REDIS_PORT ?? 30011),
   },
 };
 

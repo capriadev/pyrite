@@ -29,6 +29,7 @@
     "orm": "npm run orm:generate",
     "orm:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "orm:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "orm:migrate:test": "cross-env DB_NAME=pyrite_test drizzle-kit migrate --config=drizzle.config.ts",
     "orm:push": "drizzle-kit push --config=drizzle.config.ts",
     "orm:studio": "drizzle-kit studio --config=drizzle.config.ts",
 

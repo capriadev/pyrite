@@ -9,11 +9,13 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 -->
 
 ## Last session
-- 2026-09-01: Spec #1 backend skeleton cerrado y mergeado a main (rama borrada). Runtime Node 24.20.0 via nvm. Decisiones de frontend registradas en architecture.md (Atomic Lazy Design, theming por tokens, sourcing de componentes). features.md acumula backlog (#2-#5).
+- 2026-09-06: Spec #3 config en DB completado y verificado end-to-end (settings persisten tras restart). Bloque de puertos 30k (prod 30000-30019, test 301xx). Dos DBs: pyrite + pyrite_test. Compose usa volumenes externos docker_* (datos existentes).
 
 ## Next up
-- Spec #2: esqueleto frontend (Next.js + Atomic Lazy Design + theming por tokens). Pendiente de abrir.
-- features.md ahora acumula features planificadas (#2-#5); spec se abre cuando la feature esta lista para desarrollar.
+- Spec #4: Auth core + crypto en capas (3 niveles de p1b). Requiere sesion de planificacion previa (master key, sesiones).
+- Finances (fuente de verdad de montos) -> Tasks + recurrencia -> Calendar + reconciliacion -> Dashboard.
+- Webs/APIs trae la tabla api_keys + validadores.
+- Pendiente: resolver drizzle-kit migrate falla silencioso (ver errors/) - investigar compatibilidad kit 0.31 vs orm 0.45.
 
 ## Open decisions (unresolved, blocking or not)
 - (ninguna bloqueante)

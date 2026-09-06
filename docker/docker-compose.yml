@@ -1,6 +1,6 @@
 # Docker Compose - Pyrite
 # Contenedor `pyrite` con instancias internas (Postgres + Redis).
-# El backend (apps/api) corre apuntando a estos servicios.
+# Pyrite port block: 300xx (prod). Postgres host 30010, Redis host 30011.
 name: pyrite
 
 services:
@@ -13,9 +13,10 @@ services:
       POSTGRES_PASSWORD: pyrite
       POSTGRES_DB: pyrite
     ports:
-      - "5433:5432"
+      - "30010:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pyrite -d pyrite"]
       interval: 5s
@@ -27,7 +28,7 @@ services:
     container_name: pyrite-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "30011:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -38,4 +39,8 @@ services:
 
 volumes:
   postgres-data:
+    external: true
+    name: docker_postgres-data
   redis-data:
+    external: true
+    name: docker_redis-data

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
+import { SettingsController } from './settings.controller';
 import { ServicesModule } from '../services/services.module';
 
 /**
@@ -7,6 +8,6 @@ import { ServicesModule } from '../services/services.module';
  */
 @Module({
   imports: [ServicesModule],
-  controllers: [HealthController],
+  controllers: [HealthController, SettingsController],
 })
 export class GatewayModule {}

@@ -6,4 +6,4 @@ Router for conflict/error post-mortems. Add an entry each time you create a file
 # <slug> - <one-line problem>
 -->
 
-(No errors logged yet.)
+# drizzle-kit-migrate-falla-silencioso - drizzle-kit migrate sale con exit 1 sin aplicar (ver workaround psql)

@@ -15,6 +15,13 @@
       "when": 1788764982702,
       "tag": "0001_worthless_nightcrawler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788820119217,
+      "tag": "0002_massive_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }

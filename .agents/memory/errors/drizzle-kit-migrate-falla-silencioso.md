@@ -15,7 +15,11 @@
   Get-Content drizzle/migrations/0000_*.sql -Raw | docker exec -i pyrite-postgres psql -U pyrite -d pyrite
   ```
 - (PowerShell no soporta `<` de redir de entrada; usar `Get-Content -Raw | docker exec -i`.)
-- Investigar a futuro: probable incompatibilidad drizzle-kit 0.31 vs drizzle-orm 0.45 (migrate usa la tabla `__drizzle_migrations` que 0.31 crea con un formato que 0.45 no lee). Considerar alinear la version de drizzle-kit o migrar el flujo.
+
+## Root cause (confirmed 2026-09-07)
+- `drizzle-kit migrate` swallows the error: `renderWithTask`'s catch does `process.exit(1)` WITHOUT printing the error. The "applying migrations..." spinner looks identical in pending vs rejected state, so failure is indistinguishable from success except the exit code (and `%ERRORLEVEL%` in cmd is evaluated before the command, so exit 0 was an artifact - also unreliable as a signal).
+- Trigger of the original silent failure: migration 0000 had been applied manually via psql, so `CREATE TABLE settings` failed with "already exists" on a real `migrate`, which the CLI swallowed.
+- Recurring caveat: drizzle-kit 0.31's `migrate` is essentially a no-op unless `drizzle.config.ts` resolves a valid connection; it neither applies nor creates the tracking table. Workflow relies on review-the-.sql + apply-via-psql.
 
 ## Tags
 <drizzle> <orm> <migrate> <windows>

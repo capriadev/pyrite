@@ -67,3 +67,16 @@ export const movements = pgTable('movements', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ============================================================
+// Rates
+// ============================================================
+
+export const ratesDaily = pgTable('rates_daily', {
+  type: text('type').notNull(),
+  buy: numeric('buy', { precision: 10, scale: 2 }).notNull(),
+  sell: numeric('sell', { precision: 10, scale: 2 }).notNull(),
+  date: text('date').notNull(),
+}, (t) => ({
+  uniqueTypeDate: { name: 'rates_daily_type_date_key', columns: [t.type, t.date], unique: true },
+}));

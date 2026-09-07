@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { DalModule } from '../dal/dal.module';
 import { SettingsService } from './settings.service';
+import { FinancesService } from './finances.service';
 
 /**
  * Domain logic layer. Feature BLL modules are registered here as they are
@@ -9,7 +10,7 @@ import { SettingsService } from './settings.service';
 @Global()
 @Module({
   imports: [DalModule],
-  providers: [SettingsService],
-  exports: [SettingsService],
+  providers: [SettingsService, FinancesService],
+  exports: [SettingsService, FinancesService],
 })
 export class BllModule {}

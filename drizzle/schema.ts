@@ -1,4 +1,4 @@
-import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { jsonb, numeric, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * Pyrite database schema. Source of truth for drizzle-kit.
@@ -14,5 +14,56 @@ import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 export const settings = pgTable('settings', {
   key: text('key').primaryKey(),
   value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ============================================================
+// Finances
+// ============================================================
+
+export const movementTypeEnum = pgEnum('movement_type', ['income', 'expense']);
+export const movementStatusEnum = pgEnum('movement_status', ['active', 'deleted']);
+export const currencyEnum = pgEnum('currency', ['ARS', 'USD']);
+export const balanceKeyEnum = pgEnum('balance_key', ['cash_ars', 'digital_ars', 'cash_usd', 'digital_usd']);
+
+export const categories = pgTable('categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  type: movementTypeEnum('type').notNull(),
+  status: movementStatusEnum('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const platforms = pgTable('platforms', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  status: movementStatusEnum('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const balances = pgTable('balances', {
+  key: balanceKeyEnum('key').primaryKey(),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull().default('0'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const movements = pgTable('movements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  type: movementTypeEnum('type').notNull(),
+  amountCurrency: currencyEnum('amount_currency').notNull(),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  paidCurrency: currencyEnum('paid_currency').notNull(),
+  paidAmount: numeric('paid_amount', { precision: 14, scale: 2 }).notNull(),
+  rateUsed: numeric('rate_used', { precision: 14, scale: 4 }).notNull(),
+  balanceSource: balanceKeyEnum('balance_source').notNull(),
+  categoryId: uuid('category_id')
+    .notNull()
+    .references(() => categories.id),
+  platformId: uuid('platform_id').references(() => platforms.id),
+  description: text('description').notNull(),
+  note: text('note'),
+  date: timestamp('date', { withTimezone: true }).notNull().defaultNow(),
+  status: movementStatusEnum('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

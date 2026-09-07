@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { HealthService } from './health/health.service';
+import { RatesSchedulerService } from './rates-scheduler.service';
 
-/**
- * Cross-cutting application services (shared by bll and gateway).
- */
 @Module({
-  providers: [HealthService],
+  providers: [HealthService, RatesSchedulerService],
   exports: [HealthService],
 })
 export class ServicesModule {}

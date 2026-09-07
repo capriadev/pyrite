@@ -14,6 +14,7 @@ export interface RateEntry {
 export class RatesService {
   private readonly log = new Logger(RatesService.name);
   private intradiaRates: DolarApiRate[] | null = null;
+  private lastReconcileAt = 0;
 
   constructor(
     private readonly argData: ArgentinaDatosClient,
@@ -27,6 +28,7 @@ export class RatesService {
       .filter((r) => r.casa && r.venta != null && r.compra != null)
       .map((r) => ({ type: r.casa, buy: r.compra, sell: r.venta, date: r.fecha }));
     await this.ratesRepo.upsertMany(entries);
+    this.lastReconcileAt = Date.now();
     this.log.log(`Reconcile complete: ${entries.length} entries`);
     return entries.length;
   }
@@ -56,6 +58,22 @@ export class RatesService {
       return;
     }
     const daysBehind = (Date.now() - new Date(lastBlue).getTime()) / 86_400_000;
-    if (daysBehind > 2) this.log.warn(`Blue ${Math.floor(daysBehind)} days behind (last=${lastBlue})`);
+    if (daysBehind > 2) this.log.warn(`Daily check: blue ${Math.floor(daysBehind)} days behind (last=${lastBlue})`);
+  }
+
+  /**
+   * Called by the scheduler every hour.
+   * Triggers a full reconcile if >6h have passed since last one (gap-fill).
+   * Daily cross-check runs if >24h since last reconcile.
+   */
+  async hourlyTick(): Promise<void> {
+    const elapsed = (Date.now() - this.lastReconcileAt) / 3600_000;
+    if (elapsed > 6 || this.lastReconcileAt === 0) {
+      this.log.log(`Hourly tick: ${Math.round(elapsed)}h since last reconcile, triggering full sync`);
+      await this.reconcileFull();
+    }
+    if (elapsed > 24) {
+      await this.dailyCrossCheck();
+    }
   }
 }

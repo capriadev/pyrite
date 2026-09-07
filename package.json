@@ -11,28 +11,22 @@
     "dev:frontend": "npm run dev --workspace=apps/frontend",
     "dev:backend": "npm run start:dev --workspace=apps/backend",
     "dev:bot": "npm run start:dev --workspace=apps/bot-discord",
-
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "npm run build --workspace=apps/frontend",
     "build:backend": "npm run build --workspace=apps/backend",
     "build:bot": "npm run build --workspace=apps/bot-discord",
-
     "start:frontend": "npm run start --workspace=apps/frontend",
     "start:backend": "npm run start:prod --workspace=apps/backend",
-
     "tsc": "npm run tsc --workspaces --if-present",
-
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f postgres redis",
-
     "orm": "npm run orm:generate",
     "orm:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "orm:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "orm:migrate:test": "cross-env DB_NAME=pyrite_test drizzle-kit migrate --config=drizzle.config.ts",
     "orm:push": "drizzle-kit push --config=drizzle.config.ts",
     "orm:studio": "drizzle-kit studio --config=drizzle.config.ts",
-
     "back": "powershell -ExecutionPolicy Bypass -File ./backup.ps1"
   },
   "devDependencies": {
@@ -42,5 +36,8 @@
   },
   "engines": {
     "node": ">=24.20.0 <25"
+  },
+  "allowScripts": {
+    "argon2@0.45.1": true
   }
 }

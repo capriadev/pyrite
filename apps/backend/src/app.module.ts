@@ -6,8 +6,13 @@ import { BllModule } from './bll/bll.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { ServicesModule } from './services/services.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { CryptoModule } from './crypto/crypto.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [ConfigModule, DalModule, RedisModule, ServicesModule, BllModule, GatewayModule, IntegrationsModule],
+  imports: [
+    ConfigModule, DalModule, RedisModule, ServicesModule, BllModule,
+    GatewayModule, IntegrationsModule, CryptoModule, AuthModule,
+  ],
 })
 export class AppModule {}

@@ -23,13 +23,14 @@ export class RatesService {
   ) {}
 
   async reconcileFull(): Promise<number> {
+    const fromDate = process.env.RATES_SYNC_FROM ?? '2025-01-01';
     const rows = await this.argData.fetchFullSeries();
     const entries = rows
-      .filter((r) => r.casa && r.venta != null && r.compra != null)
+      .filter((r) => r.casa && r.venta != null && r.compra != null && r.fecha >= fromDate)
       .map((r) => ({ type: r.casa, buy: r.compra, sell: r.venta, date: r.fecha }));
     await this.ratesRepo.upsertMany(entries);
     this.lastReconcileAt = Date.now();
-    this.log.log(`Reconcile complete: ${entries.length} entries`);
+    this.log.log(`Reconcile complete: ${entries.length} entries (from ${fromDate})`);
     return entries.length;
   }
 

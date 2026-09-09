@@ -29,6 +29,13 @@
       "when": 1788919638596,
       "tag": "0003_friendly_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788928521510,
+      "tag": "0004_chubby_mandrill",
+      "breakpoints": true
     }
   ]
 }

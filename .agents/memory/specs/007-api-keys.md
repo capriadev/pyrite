@@ -5,20 +5,28 @@ Build the APIs section backend: store API keys encrypted at rest (KDF + AES-256-
 
 ## Scope
 - In scope:
-  - Table `api_keys`: id, provider (text), label, ciphertext, iv, authTag, salt, status (active/deleted), validator_status (unchecked|valid|expired|invalid), last_checked, timestamps.
-  - Encryption on write using AuthService.getSectionPassphrase('apis') + CryptoService.createKey/encrypt/decrypt with per-record salt (medium profile).
-  - CRUD gated by `apis` unlock: create/list/show/delete (soft), get key value (decrypted, only while unlocked).
-  - Validators client per provider (openai, anthropic, github, custom) - ping endpoint with the key, mark status.
-  - Gateway: GET /apis (list, masked - show label/provider/status, not the key), GET /apis/:id/value (decrypted), POST /apis (add), POST /apis/:id/validate, DELETE /apis/:id (soft), PUT /apis/:id/label.
+  - Table `api_keys`: id, provider (text), label, detail (nullable), ciphertext, iv, authTag, salt, group_id (nullable FK), status (active/deleted), validator_status, last_checked, timestamps.
+  - Table `api_groups`: id, name, status (soft delete), created_at.
+  - Encryption on write using AuthService.getSectionPassphrase('apis') + CryptoService with per-record salt (medium profile), AAD bound to row id.
+  - CRUD gated by `apis` unlock: create/list/show/delete (soft), get key value (decrypted, only while unlocked), move key to group, update label/detail.
+  - Groups: list/create/delete (soft) - one key belongs to zero or one group.
+  - Providers: flat single-file clients in `integrations/providers/` (openai/anthropic/github), registry at `integrations/providers/index.ts`.
+  - Gateway: GET /apis (masked), GET /apis/:id/value, POST /apis, POST /apis/:id/validate, DELETE /apis/:id, PUT /apis/:id/label, PUT /apis/:id/detail, PUT /apis/:id/group, GET/POST /apis/groups, DELETE /apis/groups/:id.
 - Out of scope:
   - UI (frontend comes later).
-  - Auto-validate all on every entry into the section (decision noted in features.md #6: per-row explicit validation for now).
+  - Auto-validate all on every entry into the section (per-row explicit validation for now).
   - Web/Notes sections (parallel storage in p1b).
+  - Nested groups (possible future extension, noted).
 
 ## Approach
-- Encryption: reuse 'apis' section profile (medium) from crypto-config. Each key stored with its own salt (per-record salt rule). Encrypt on create; decrypt only in the GET /apis/:id/value and during validation.
-- Validators: a small map provider → validate(key) via fetch; custom provider uses a user-provided endpoint. Store result in validator_status + last_checked.
-- Auth guard: a simple guard/check that 'apis' section is unlocked before handling API key reads/creates; return 401 if locked.
+- Encryption: reuse 'apis' section profile (medium) from crypto-config. Each key stored with its own salt (per-record salt rule). Encrypt on create; AAD is bound to the row id (UUID); decrypt only in GET /apis/:id/value and during validation.
+- Providers: single flat file per provider in `integrations/providers/`, holding ALL its API query methods (validate, listModels, chat/embeddings when needed). `index.ts` is the ONLY entry point consumers import from (registry name -> client). Splitting deferred until a file grows past ~150-200 lines (agent/notebook usage); when it does, split into `providers/{name}/` micro-modules - consumers unaffected (they import from index.ts).
+- Groups: modelo carpeta - a key belongs to zero or one group. Groups are flat for now; nested groups (groups of groups) are a possible future extension, noted but not designed. Delete group (soft) sets keys' group_id to NULL via FK ON DELETE SET NULL.
+- Validators: unknown provider has no automatic validation -> status remains 'unchecked' (honest, not assumed valid).
+
+## Design notes (documented so we don't lose the plan)
+- Providers start as flat single files (option A). When one grows past ~150-200 lines via agent/notebook usage, split into `providers/{name}/` micro-modules (`agent.client.ts`, `models.client.ts`). The refactor is invisible to consumers because they always import from `providers/index.ts`. A planned, documented future step - not to decide ad-hoc when it happens.
+- Groups flat now, nested as a possible future extension (groups of groups) - noted here so it's revisited deliberately if needed.
 
 ## Acceptance criteria
 - [ ] Backend CRUD for api_keys, gated by apis section unlock.

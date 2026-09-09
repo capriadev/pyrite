@@ -1,21 +1,23 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+﻿import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'crypto';
 import { ApiKeysRepository, type ApiKeyRow } from '../dal/api-keys.repository';
 import { CryptoService } from '../crypto/crypto.service';
 import { AuthService } from '../auth/auth.service';
+import { getProviderClient } from '../integrations/providers/index';
+import { type ProviderStatus } from '../integrations/providers/provider.types';
 
 export interface CreateApiKeyInput {
   provider: string;
   label: string;
   key: string;
+  detail?: string | null;
+  groupId?: string | null;
 }
 
-type ValidatorStatus = 'unchecked' | 'valid' | 'expired' | 'invalid';
+export interface CreateGroupInput {
+  name: string;
+}
 
-/**
- * API keys domain: encrypted at rest (KDF + AES-GCM, medium profile),
- * gated by the 'apis' section unlock.
- */
 @Injectable()
 export class ApiKeysService {
   constructor(
@@ -40,6 +42,8 @@ export class ApiKeysService {
       id,
       provider: input.provider,
       label: input.label,
+      detail: input.detail ?? null,
+      groupId: input.groupId ?? null,
       ciphertext: encrypted.ciphertext,
       iv: encrypted.iv,
       authTag: encrypted.authTag,
@@ -65,16 +69,18 @@ export class ApiKeysService {
     );
   }
 
-  async validate(id: string): Promise<ValidatorStatus> {
-    // decrypt the key, then validate via provider
+  async validate(id: string): Promise<ProviderStatus> {
     const key = await this.getValue(id);
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException('api key not found');
-    let status: ValidatorStatus = 'invalid';
-    try {
-      status = await this.providerValidate(row.provider, key);
-    } catch {
-      status = 'invalid';
+    const client = getProviderClient(row.provider);
+    let status: ProviderStatus = 'unchecked';
+    if (client) {
+      try {
+        status = await client.validate(key);
+      } catch {
+        status = 'invalid';
+      }
     }
     await this.repo.updateValidator(id, status, new Date());
     return status;
@@ -88,30 +94,30 @@ export class ApiKeysService {
     await this.repo.updateLabel(id, label);
   }
 
+  async updateDetail(id: string, detail: string): Promise<void> {
+    await this.repo.updateDetail(id, detail);
+  }
+
+  async moveToGroup(id: string, groupId: string | null): Promise<void> {
+    await this.repo.updateGroup(id, groupId);
+  }
+
+  // ============ GROUPS ============
+
+  async listGroups() {
+    return this.repo.findGroups();
+  }
+
+  async createGroup(input: CreateGroupInput) {
+    return this.repo.createGroup(input.name);
+  }
+
+  async removeGroup(id: string): Promise<void> {
+    await this.repo.softDeleteGroup(id);
+  }
+
   private mask(r: ApiKeyRow): Omit<ApiKeyRow, 'ciphertext' | 'iv' | 'authTag' | 'salt'> {
     const { ciphertext, iv, authTag, salt, ...rest } = r;
     return rest;
-  }
-
-  // Simple validators: ping a provider endpoint with the key. First pass:
-  // openai, anthropic, github; 'custom' uses validation from caller context.
-  private async providerValidate(provider: string, key: string): Promise<ValidatorStatus> {
-    switch (provider) {
-      case 'openai':
-        return this.validateFetch('https://api.openai.com/v1/models', key);
-      case 'anthropic':
-        return this.validateFetch('https://api.anthropic.com/v1/models', key);
-      case 'github':
-        return this.validateFetch('https://api.github.com/user', key);
-      default:
-        return 'valid'; // custom: caller decided it's valid by adding it; no automatic check
-    }
-  }
-
-  private async validateFetch(url: string, key: string): Promise<ValidatorStatus> {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
-    if (res.status === 401 || res.status === 403) return 'invalid';
-    if (res.ok) return 'valid';
-    return 'invalid';
   }
 }

@@ -1,12 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { DRIZZLE_DB, type DrizzleDb } from './drizzle.provider';
-import { apiKeys } from '../../../../drizzle/schema';
+import { apiKeys, apiGroups } from '../../../../drizzle/schema';
 
 export interface ApiKeyRow {
   id: string;
   provider: string;
   label: string;
+  detail: string | null;
+  groupId: string | null;
   ciphertext: string;
   iv: string;
   authTag: string;
@@ -49,11 +51,37 @@ export class ApiKeysRepository {
     await this.db.update(apiKeys).set({ label }).where(eq(apiKeys.id, id));
   }
 
+  async updateDetail(id: string, detail: string | null): Promise<void> {
+    await this.db.update(apiKeys).set({ detail }).where(eq(apiKeys.id, id));
+  }
+
+  async updateGroup(id: string, groupId: string | null): Promise<void> {
+    await this.db.update(apiKeys).set({ groupId: groupId ?? null }).where(eq(apiKeys.id, id));
+  }
+
+  // ============ GROUPS ============
+
+  async createGroup(name: string): Promise<{ id: string; name: string; status: string }> {
+    const inserted = await this.db.insert(apiGroups).values({ name }).returning();
+    return { id: inserted[0].id, name: inserted[0].name, status: inserted[0].status };
+  }
+
+  async findGroups(): Promise<Array<{ id: string; name: string; status: string }>> {
+    const rows = await this.db.select().from(apiGroups).where(eq(apiGroups.status, 'active'));
+    return rows.map((r) => ({ id: r.id, name: r.name, status: r.status }));
+  }
+
+  async softDeleteGroup(id: string): Promise<void> {
+    await this.db.update(apiGroups).set({ status: 'deleted' }).where(eq(apiGroups.id, id));
+  }
+
   private mapRow(r: typeof apiKeys.$inferSelect): ApiKeyRow {
     return {
       id: r.id,
       provider: r.provider,
       label: r.label,
+      detail: r.detail ?? null,
+      groupId: r.groupId ?? null,
       ciphertext: r.ciphertext,
       iv: r.iv,
       authTag: r.authTag,

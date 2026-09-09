@@ -1,6 +1,6 @@
 # Features - SDD index | delete when complete | new ID = last_id + 1
 
-last_id: 9
+last_id: 12
 
 <!--
 One line per feature. Planned features may be registered here without a spec yet (status: pending); a spec is opened when the feature is planned and ready to develop. When a feature is COMPLETE: remove its line here and mark the spec status as completed. SPECS ARE NEVER DELETED - specs/ is a permanent registry, the numbering exists for that. Never reuse an ID; last_id only grows.
@@ -15,3 +15,6 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #6 APIs section - almacen de API keys con validadores, estado activa/vencida/invalida [spec: 007-api-keys.md] [status: active]
 #7 Finances core - categorias/platformas/balances, movimientos con conversion efectiva snapshot y balance_source [spec: 005-finances-core.md] [status: completed]
 #8 Rates sync - sincronizacion diaria de cotizaciones (todos los tipos) desde ArgentinaDatos + intradia dolarapi, reconcile idempotente, cross-check diario [spec: 006-rates-sync.md] [status: completed]
+#9 Finances UI - UI de finances; al iniciarse se dispara la sub-spec C (graficos/filtros, spec 005) [status: pending]
+#10 Backend restructure - subcarpetas por dominio en dal/bll/gateway, crypto a services, auth separado [spec: 008-backend-restructure.md] [status: active]
+#11 Fix drizzle location - mover schema/migrations/config a apps/backend, build limpio (rootDir ".", dist/src/main.js), scripts orm con cd apps/backend [spec: 009-fix-drizzle-location.md] [status: completed]

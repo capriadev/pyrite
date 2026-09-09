@@ -62,6 +62,7 @@ repo root/
 ├── package.json                  workspace scripts/deps
 ├── apps/
 │   ├── backend/                  Nest.js backend
+│   │   ├── drizzle/              schema + migrations (backend asset)
 │   │   └── src/
 │   │       ├── bll/
 │   │       ├── config/
@@ -73,7 +74,6 @@ repo root/
 │   └── frontend/                 Next.js UI
 ├── docker/                       compose for container `pyrite` + instances
 ├── docs/                         human-readable philosophy/manifesto
-├── drizzle/                      schema/migration assets
 ├── satellite-services/           external service adapters and helpers
 ├── sidecars/                     auxiliary sidecar processes
 ├── temp/                         local temp files, generated assets, logs

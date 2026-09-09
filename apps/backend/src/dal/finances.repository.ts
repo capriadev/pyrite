@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { DRIZZLE_DB, type DrizzleDb } from './drizzle.provider';
-import { movements, categories, platforms, balances } from '../../../../drizzle/schema';
+import { movements, categories, platforms, balances } from '../../drizzle/schema';
 
 /**
  * DAL for the finances domain. Only layer that touches these tables.

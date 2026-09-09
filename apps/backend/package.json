@@ -5,8 +5,8 @@
   "description": "Pyrite backend (Nest.js)",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start:dev": "concurrently -n tsc,node -c yellow,green \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"node --watch dist/apps/backend/src/main.js\"",
-    "start:prod": "node dist/apps/backend/src/main.js",
+    "start:dev": "concurrently -n tsc,node -c yellow,green \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"node --watch dist/src/main.js\"",
+    "start:prod": "node dist/src/main.js",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {

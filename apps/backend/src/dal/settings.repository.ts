@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { DRIZZLE_DB, type DrizzleDb } from './drizzle.provider';
-import { settings } from '../../../../drizzle/schema';
+import { settings } from '../../drizzle/schema';
 
 /**
  * Only layer that touches the settings table. No business logic here.

@@ -23,3 +23,11 @@ node_modules/
 # Generated/minified code
 *.min.js
 *.map
+
+# Backups
+_backups/
+backup.ps1
+backup.config.ps1
+backup.config.example.ps1
+
+.claudeignore

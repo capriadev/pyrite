@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
-import { FinancesService, type NewMovementInput } from '../bll/finances.service';
+import { FinancesService, type NewMovementInput } from '../../bll/finances/finances.service';
 
 @Controller('finances')
 export class FinancesController {

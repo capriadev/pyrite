@@ -1,7 +1,7 @@
 ﻿import { Injectable, Logger } from '@nestjs/common';
-import { ArgentinaDatosClient } from '../integrations/argentinadatos.client';
-import { DolarApiClient, type DolarApiRate } from '../integrations/dolarapi.client';
-import { RatesRepository } from '../dal/rates.repository';
+import { ArgentinaDatosClient } from '../../integrations/argentinadatos.client';
+import { DolarApiClient, type DolarApiRate } from '../../integrations/dolarapi.client';
+import { RatesRepository } from '../../dal/rates/rates.repository';
 
 export interface RateEntry {
   type: string;

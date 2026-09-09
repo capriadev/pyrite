@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
-import { DRIZZLE_DB, type DrizzleDb } from './drizzle.provider';
-import { ratesDaily } from '../../drizzle/schema';
+import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
+import { ratesDaily } from '../../../drizzle/schema';
 
 @Injectable()
 export class RatesRepository {

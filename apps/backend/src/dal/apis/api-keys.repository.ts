@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE_DB, type DrizzleDb } from './drizzle.provider';
-import { apiKeys, apiGroups } from '../../drizzle/schema';
+import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
+import { apiKeys, apiGroups } from '../../../drizzle/schema';
 
 export interface ApiKeyRow {
   id: string;

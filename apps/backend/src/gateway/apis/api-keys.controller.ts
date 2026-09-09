@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Param, Delete, Body, Put } from '@nestjs/common';
-import { ApiKeysService } from '../bll/api-keys.service';
+import { ApiKeysService } from '../../bll/apis/api-keys.service';
 
 @Controller('apis')
 export class ApiKeysController {

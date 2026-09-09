@@ -16,5 +16,5 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #7 Finances core - categorias/platformas/balances, movimientos con conversion efectiva snapshot y balance_source [spec: 005-finances-core.md] [status: completed]
 #8 Rates sync - sincronizacion diaria de cotizaciones (todos los tipos) desde ArgentinaDatos + intradia dolarapi, reconcile idempotente, cross-check diario [spec: 006-rates-sync.md] [status: completed]
 #9 Finances UI - UI de finances; al iniciarse se dispara la sub-spec C (graficos/filtros, spec 005) [status: pending]
-#10 Backend restructure - subcarpetas por dominio en dal/bll/gateway, crypto a services, auth separado [spec: 008-backend-restructure.md] [status: active]
+#10 Backend restructure - subcarpetas por dominio en dal/bll/gateway, crypto a services, auth separado [spec: 008-backend-restructure.md] [status: completed]
 #11 Fix drizzle location - mover schema/migrations/config a apps/backend, build limpio (rootDir ".", dist/src/main.js), scripts orm con cd apps/backend [spec: 009-fix-drizzle-location.md] [status: completed]

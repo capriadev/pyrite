@@ -4,10 +4,10 @@ import { Pool } from 'pg';
 import { APP_CONFIG, type AppConfig } from '../config/configuration';
 import * as schema from '../../drizzle/schema';
 import { DRIZZLE_DB, type DrizzleDb } from './drizzle.provider';
-import { SettingsRepository } from './settings.repository';
-import { FinancesRepository } from './finances.repository';
-import { RatesRepository } from './rates.repository';
-import { ApiKeysRepository } from './api-keys.repository';
+import { SettingsRepository } from './settings/settings.repository';
+import { FinancesRepository } from './finances/finances.repository';
+import { RatesRepository } from './rates/rates.repository';
+import { ApiKeysRepository } from './apis/api-keys.repository';
 
 class PgPoolHolder implements OnApplicationShutdown {
   constructor(readonly pool: Pool) {}

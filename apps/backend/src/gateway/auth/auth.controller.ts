@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Param, Body, HttpException, HttpStatus } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { type SectionName } from '../crypto/crypto-config';
+import { AuthService } from '../../bll/auth/auth.service';
+import { type SectionName } from '../../services/crypto/crypto-config';
 
 @Controller('auth')
 export class AuthController {

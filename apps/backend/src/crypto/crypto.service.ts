@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { SECTION_CRYPTO_CONFIG, LOGIN_PEPPER, LOGIN_PROFILE, type SectionName } from './crypto-config';
@@ -19,9 +19,6 @@ export interface CanaryData {
 
 @Injectable()
 export class CryptoService {
-  /**
-   * ========== HASH (login, one-way verification) ==========
-   */
   async hashPassword(password: string): Promise<{ hash: string; salt: string }> {
     const salt = randomBytes(16);
     const hash = await argon2.hash(password + LOGIN_PEPPER, {
@@ -39,11 +36,6 @@ export class CryptoService {
     return argon2.verify(hash, password + LOGIN_PEPPER);
   }
 
-  /**
-   * ========== KDF (key derivation for reversible encryption) ==========
-   * Derives a 256-bit AES key from passphrase + pepper + salt.
-   * Salt is per-record; the caller decides whether to reuse or generate fresh.
-   */
   async deriveKey(passphrase: string, section: SectionName, salt: Buffer): Promise<Buffer> {
     const config = SECTION_CRYPTO_CONFIG[section];
     return argon2.hash(passphrase + config.pepper, {
@@ -57,10 +49,6 @@ export class CryptoService {
     });
   }
 
-  /**
-   * ========== AES-256-GCM (symmetric reversible encryption) ==========
-   * Key must already be derived (by the caller, stored in memory per section).
-   */
   encrypt(plaintext: string, key: Buffer, aad: Buffer): EncryptedData {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv);
@@ -83,11 +71,6 @@ export class CryptoService {
     return plain.toString('utf8');
   }
 
-  /**
-   * ========== Canary (passphrase verification via GCM authTag) ==========
-   * Create a canary by encrypting a known phrase with the section key.
-   * Verify by attempting to decrypt the canary with the same key.
-   */
   async createCanary(passphrase: string, section: SectionName): Promise<CanaryData> {
     const salt = randomBytes(16);
     const key = await this.deriveKey(passphrase, section, salt);

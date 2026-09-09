@@ -80,3 +80,33 @@ export const ratesDaily = pgTable('rates_daily', {
 }, (t) => ({
   uniqueTypeDate: { name: 'rates_daily_type_date_key', columns: [t.type, t.date], unique: true },
 }));
+
+// ============================================================
+// API keys
+// ============================================================
+
+export const validatorStatusEnum = pgEnum('validator_status', ['unchecked', 'valid', 'expired', 'invalid']);
+
+export const apiKeys = pgTable('api_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  provider: text('provider').notNull(),
+  label: text('label').notNull(),
+  detail: text('detail'),
+  ciphertext: text('ciphertext').notNull(),
+  iv: text('iv').notNull(),
+  authTag: text('auth_tag').notNull(),
+  salt: text('salt').notNull(),
+  groupId: uuid('group_id').references(() => apiGroups.id, { onDelete: 'set null' }),
+  status: movementStatusEnum('status').notNull().default('active'),
+  validatorStatus: validatorStatusEnum('validator_status').notNull().default('unchecked'),
+  lastChecked: timestamp('last_checked', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const apiGroups = pgTable('api_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  status: movementStatusEnum('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

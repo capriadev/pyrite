@@ -6,8 +6,8 @@ import { BllModule } from './bll/bll.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { ServicesModule } from './services/services.module';
 import { IntegrationsModule } from './integrations/integrations.module';
-import { CryptoModule } from './crypto/crypto.module';
-import { AuthModule } from './auth/auth.module';
+import { CryptoModule } from './services/crypto/crypto.module';
+import { AuthModule } from './gateway/auth/auth.module';
 
 @Module({
   imports: [

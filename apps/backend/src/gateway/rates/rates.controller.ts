@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Query } from '@nestjs/common';
-import { RatesService, type RateEntry } from '../bll/rates.service';
+import { RatesService, type RateEntry } from '../../bll/rates/rates.service';
 
 @Controller('rates')
 export class RatesController {

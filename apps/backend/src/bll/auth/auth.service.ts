@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { CryptoService, type CanaryData } from '../crypto/crypto.service';
-import { SettingsRepository } from '../dal/settings.repository';
-import { type SectionName } from '../crypto/crypto-config';
+import { CryptoService, type CanaryData } from '../../services/crypto/crypto.service';
+import { SettingsRepository } from '../../dal/settings/settings.repository';
+import { type SectionName } from '../../services/crypto/crypto-config';
 
 const SECTIONS: SectionName[] = ['notes', 'apis', 'vault', 'counts'];
 

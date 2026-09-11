@@ -1,10 +1,10 @@
 ﻿import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'crypto';
-import { ApiKeysRepository, type ApiKeyRow } from '../dal/api-keys.repository';
-import { CryptoService } from '../crypto/crypto.service';
+import { ApiKeysRepository, type ApiKeyRow } from '../../dal/apis/api-keys.repository';
+import { CryptoService } from '../../services/crypto/crypto.service';
 import { AuthService } from '../auth/auth.service';
-import { getProviderClient } from '../integrations/providers/index';
-import { type ProviderStatus } from '../integrations/providers/provider.types';
+import { getProviderClient } from '../../integrations/providers/index';
+import { type ProviderStatus } from '../../integrations/providers/provider.types';
 
 export interface CreateApiKeyInput {
   provider: string;

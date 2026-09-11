@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FinancesRepository } from '../dal/finances.repository';
+import { FinancesRepository } from '../../dal/finances/finances.repository';
 
 export interface NewMovementInput {
   type: 'income' | 'expense';

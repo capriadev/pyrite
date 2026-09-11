@@ -1,5 +1,5 @@
 import { Injectable, type OnApplicationBootstrap } from '@nestjs/common';
-import { SettingsRepository } from '../dal/settings.repository';
+import { SettingsRepository } from '../../dal/settings/settings.repository';
 
 /**
  * System settings domain. Loads the full settings table into memory at boot

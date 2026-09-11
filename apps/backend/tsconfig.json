@@ -12,7 +12,7 @@
     "esModuleInterop": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "../..",
+    "rootDir": ".",
     "incremental": true,
     "skipLibCheck": true,
     "strict": true,

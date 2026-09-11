@@ -22,11 +22,11 @@
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f postgres redis",
     "orm": "npm run orm:generate",
-    "orm:generate": "drizzle-kit generate --config=drizzle.config.ts",
-    "orm:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
-    "orm:migrate:test": "cross-env DB_NAME=pyrite_test drizzle-kit migrate --config=drizzle.config.ts",
-    "orm:push": "drizzle-kit push --config=drizzle.config.ts",
-    "orm:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "orm:generate": "cd apps/backend && drizzle-kit generate",
+    "orm:migrate": "cd apps/backend && drizzle-kit migrate",
+    "orm:migrate:test": "cd apps/backend && cross-env DB_NAME=pyrite_test drizzle-kit migrate",
+    "orm:push": "cd apps/backend && drizzle-kit push",
+    "orm:studio": "cd apps/backend && drizzle-kit studio",
     "back": "powershell -ExecutionPolicy Bypass -File ./backup.ps1"
   },
   "devDependencies": {

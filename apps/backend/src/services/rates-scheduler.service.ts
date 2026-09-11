@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
-import { RatesService } from '../bll/rates.service';
+import { RatesService } from '../bll/rates/rates.service';
 
 /**
  * Scheduler for rate sync operations.

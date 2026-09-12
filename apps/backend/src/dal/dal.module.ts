@@ -8,6 +8,8 @@ import { SettingsRepository } from './settings/settings.repository';
 import { FinancesRepository } from './finances/finances.repository';
 import { RatesRepository } from './rates/rates.repository';
 import { ApiKeysRepository } from './apis/api-keys.repository';
+import { GroupsRepository } from './groups/groups.repository';
+import { NotesRepository } from './notes/notes.repository';
 
 class PgPoolHolder implements OnApplicationShutdown {
   constructor(readonly pool: Pool) {}
@@ -43,8 +45,10 @@ const PG_POOL = Symbol('PG_POOL');
     FinancesRepository,
     RatesRepository,
     ApiKeysRepository,
+    GroupsRepository,
+    NotesRepository,
   ],
-  exports: [DRIZZLE_DB, SettingsRepository, FinancesRepository, RatesRepository, ApiKeysRepository],
+  exports: [DRIZZLE_DB, SettingsRepository, FinancesRepository, RatesRepository, ApiKeysRepository, GroupsRepository, NotesRepository],
 })
 export class DalModule {}
 

@@ -36,6 +36,13 @@
       "when": 1788928521510,
       "tag": "0004_chubby_mandrill",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789000000000,
+      "tag": "0005_notes_and_unified_groups",
+      "breakpoints": true
     }
   ]
 }

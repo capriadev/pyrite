@@ -4,12 +4,13 @@ import { SettingsController } from './settings/settings.controller';
 import { FinancesController } from './finances/finances.controller';
 import { RatesController } from './rates/rates.controller';
 import { ApiKeysController } from './apis/api-keys.controller';
+import { NotesController } from './notes/notes.controller';
 import { AuthModule } from './auth/auth.module';
 import { ServicesModule } from '../services/services.module';
 import { BllModule } from '../bll/bll.module';
 
 @Module({
   imports: [ServicesModule, BllModule, AuthModule],
-  controllers: [HealthController, SettingsController, FinancesController, RatesController, ApiKeysController],
+  controllers: [HealthController, SettingsController, FinancesController, RatesController, ApiKeysController, NotesController],
 })
 export class GatewayModule {}

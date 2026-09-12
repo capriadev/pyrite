@@ -96,7 +96,7 @@ export const apiKeys = pgTable('api_keys', {
   iv: text('iv').notNull(),
   authTag: text('auth_tag').notNull(),
   salt: text('salt').notNull(),
-  groupId: uuid('group_id').references(() => apiGroups.id, { onDelete: 'set null' }),
+  groupId: uuid('group_id').references(() => groups.id, { onDelete: 'set null' }),
   status: movementStatusEnum('status').notNull().default('active'),
   validatorStatus: validatorStatusEnum('validator_status').notNull().default('unchecked'),
   lastChecked: timestamp('last_checked', { withTimezone: true }),
@@ -104,9 +104,39 @@ export const apiKeys = pgTable('api_keys', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const apiGroups = pgTable('api_groups', {
+// ============================================================
+// Notes
+// ============================================================
+
+export const notesPrivateEnum = pgEnum('notes_private_flag', ['true', 'false']);
+export const notesPinnedEnum = pgEnum('notes_pinned_flag', ['true', 'false']);
+
+export const notes = pgTable('notes', {
   id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  ciphertext: text('ciphertext').notNull(),
+  iv: text('iv').notNull(),
+  authTag: text('auth_tag').notNull(),
+  salt: text('salt').notNull(),
+  isPrivate: notesPrivateEnum('is_private').notNull().default('false'),
+  pinned: notesPinnedEnum('pinned').notNull().default('false'),
+  groupId: uuid('group_id').references(() => groups.id, { onDelete: 'set null' }),
+  status: movementStatusEnum('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ============================================================
+// Groups (unified per-domain)
+// ============================================================
+
+export const groups = pgTable('groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  domain: text('domain').notNull(),
   name: text('name').notNull(),
   status: movementStatusEnum('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  domainName: { name: 'groups_domain_name_key', columns: [t.domain, t.name], unique: true },
+}));

@@ -1,9 +1,7 @@
 # Pyrite - Philosophy
 
-> "Oro de los tontos": humilde por fuera, sólido por dentro. Esta es la intención y las reglas de fondo del proyecto.
+> Esta es la intención y las reglas de fondo del proyecto.
 
-## Qué es Pyrite
-Sistema personal, **single-user**, privado y **local-first**. Los datos sensibles no salen del equipo. Repo **público** para que cualquiera lo clone y lo use local (no es SaaS).
 
 ## Principios
 1. **Ordinario por fuera, sólido por dentro.** UI humilde, arquitectura robusta.

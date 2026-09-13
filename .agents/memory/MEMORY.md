@@ -9,22 +9,21 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 -->
 
 ## Last session
-- 2026-09-13: Spec #13 (Logging system) implementada y verificada en rama feat/logging (3 commits: sistema+config, migracion+negocio, CI build). pino + pino-pretty; rotacion propia (DailyRotatingStream) tras descartar pino-roll (no rotaba por tamano de forma fiable) y pino-http (redundante con el interceptor propio). Logs JSON Lines en logs/backend/{backend,errors}.YYYYMMDD.N.log, reqId por AsyncLocalStorage, redaccion dura de credenciales, retencion 120 dias. PR pendiente.
-- 2026-09-12: Spec #12 (Notes backend) implementada y verificada end-to-end. PR #13 (feat/notes -> main) mergeado. Migracion 0005 aplicada. Smoke confirmo CRUD cifrado, modo privado con lock real, busqueda, groups unificados, soft-delete y 409 en grupo duplicado.
+- 2026-09-13: Sesion de docs (rama docs/refresh): MEMORY al dia (logging mergeado, puerto corregido a 30010), architecture con la fila de Logging y la distincion config app/usuario (DB) vs config backend/infra (.env), capa types/, layout con logs/ y .github/; feature #6 (APIs) marcada completed y sacada del indice. Sin cambios en specs/ (registro permanente).
 
 ## Next up
-- Abrir PR de feat/logging y mergear.
-- PR #13 (feat/notes) ya mergeado; Notes UI (frontend) pendiente: carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con carpetas/pin arriba, busqueda titulo/contenido, filtros (todos/destacado/grupo/fecha), modal de passphrase para privadas. Correr react-doctor tras cambios de UI.
-- Revisiones menores post-logging (en plan): architecture.md, MEMORY.md, READMEs raiz, filosofia de docs/, .ps1 de backups (aclaraciones, dudas, micro correcciones).
+- Notes UI (frontend): carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con carpetas/pin arriba, busqueda titulo/contenido, filtros (todos/destacado/grupo/fecha), modal de passphrase para privadas. Correr react-doctor tras cambios de UI.
 - Counts backend -> luego Calendar -> Tasks -> unificar Calendar+ambos -> motor de errores de finanzas con Calendar y Task.
 - Finances UI (spec #9) al iniciarse dispara la sub-spec C (graficos/filtros, spec 005).
+- Purge dedicado de logs (hoy la retencion por dias la hace purgeExpired() en logger.service.ts al arrancar).
+- Poda de ramas locales/remotas ya mergeadas; destructivo, requiere confirmacion explicita del usuario.
 
 ## Open decisions (unresolved, blocking or not)
-- (ninguna bloqueante)
+- `satellite-services/` esta untracked: definir si el codigo vendoreado se commitea o va a .gitignore (local-only). No bloquea.
 
 ## Watch / don't forget
 - Never use emojis or em dashes (—) in anything written for the project (docs, READMEs, commits, UI copy). Plain ASCII punctuation only.
-- Host port de Postgres es 5433: otros proyectos locales (organizador-db) ocupan el 5432 del host. No volver a mapear 5432.
+- Host port de Postgres es 30010 (mapeo 30010:5432 en docker-compose; DB_PORT=30010 en .env.example). Otros proyectos locales ocupan el 5432 del host, por eso el mapeo no es 5432.
 - El volumen postgres-data se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.
 - NO levantar servicios ni infraestructura (docker, dev servers) sin pedido explícito del usuario.
 - drizzle vive en apps/backend/drizzle (schema.ts + migrations) con apps/backend/drizzle.config.ts y scripts orm con `cd apps/backend`. El build backend usa rootDir "." y emite a dist/src/main.js (sin prefijo apps/backend). Los scripts orm raíz hacen `cd apps/backend && drizzle-kit <cmd>` (el config usa paths relativos al cwd).

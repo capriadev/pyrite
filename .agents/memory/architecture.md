@@ -18,8 +18,10 @@ Single source of truth for how Pyrite is built. Update on every trade-off. Mark 
 | DB | PostgreSQL + Redis | Provided by Docker. Postgres = source of truth; Redis = cache/perf. |
 | Container | Docker container named `pyrite` | `docker/` folder holds compose + instances. |
 | ORM | Drizzle (typed) | Candidates considered: Prisma (more known), Kysely (newer). |
-| Config | In-DB, not `.env` | Settings/vars stored in DB, loaded at boot. Allows rotating providers/keys/models at runtime. |
+| Config (app/usuario) | In-DB, not `.env` | Settings of the system that the user owns, rotate or change at runtime (providers, keys, models, preferences). Stored in DB, loaded at boot. |
+| Config (backend/infra) | `.env` | Backend boot settings: crypto peppers, Argon2id params, port, DB user/pass/name. Environment-level, not user-managed, not in DB. |
 | Runtime | Node.js 24.20.0 via nvm | Pinned by `.nvmrc` at repo root. Version managed with nvm, not system-wide installs. |
+| Logging | pino + pino-roll | JSON Lines, one stream per process under `logs/backend/`. `reqId` per request via AsyncLocalStorage, hard redaction of credentials, rotation daily + by size, 120-day retention. Base config: `services/logger/`. |
 | Windows startup | `node-windows` service (or NSSM) | Backend runs alone at Windows boot, even before login. Node can do this; Rust/Go only needed for extreme volume/CPU, not startup. |
 
 ### Backend layers (apps/backend/src) - strict responsibilities
@@ -29,6 +31,7 @@ Single source of truth for how Pyrite is built. Update on every trade-off. Mark 
 - `services/` - very specific internal services (shared, cross-cutting app-level helpers). Naming note: these are internal; do not confuse with "servicios satelitales" (external), which live in `satellite-services/`.
 - `integrations/` - adapters for external world: future satellite-services adapters (repo-root `satellite-services/`) and `providers/` containing `<proveedor>.client.ts` files that validate/consume external APIs (e.g. AI providers). Support validators live here too. Core never imports satellite code directly - only through these adapters.
 - `config/` - typed config loaded at boot (in-DB config lands here later).
+- `types/` - shared TypeScript types/contracts used by more than one layer, so no layer has to import another just for a type.
 
 ### Sidecars (own code, OS-level control)
 - Rust or Python **required** for Spotify volume control (Windows) - what `spoti-pobre` does today. Smallest possible sidecar.
@@ -60,6 +63,7 @@ repo root/
 ├── AGENTS.md                     agent manual-router
 ├── README.md                     project entry point
 ├── package.json                  workspace scripts/deps
+├── .github/workflows/            CI (typecheck + build)
 ├── apps/
 │   ├── backend/                  Nest.js backend
 │   │   ├── drizzle/              schema + migrations (backend asset)
@@ -69,14 +73,16 @@ repo root/
 │   │       ├── dal/
 │   │       ├── gateway/
 │   │       ├── integrations/
-│   │       └── services/
+│   │       ├── services/
+│   │       └── types/
 │   ├── bot-discord/              Discord bot app
 │   └── frontend/                 Next.js UI
 ├── docker/                       compose for container `pyrite` + instances
 ├── docs/                         human-readable philosophy/manifesto
+├── logs/                         runtime logs, one folder per process (gitkept)
 ├── satellite-services/           external service adapters and helpers
 ├── sidecars/                     auxiliary sidecar processes
-├── temp/                         local temp files, generated assets, logs
+├── temp/                         local temp files, generated assets (gitignored)
 ├── .agents/
 │   ├── memory/                   agent memory (this system)
 │   └── skills/                   project skills
@@ -93,7 +99,7 @@ repo root/
 - System login: passphrase → server hashes (Argon2 chain), encrypt; nothing accessible even from DB.
 - Storage sections: `apis`, `claves`, `cloud/bóveda` (mode `password` + mode `secure`).
 - Optional activable layer: physical USB key replacing internal security for critical sections (design pending; unresolved: loss/damage).
-- Auth from day 1; no `.env` (config in DB). Details to be written as sections develop.
+- Auth from day 1. App config (user-owned) in DB; backend boot settings (peppers, Argon2id params, port, DB credentials) in `.env`. Details to be written as sections develop.
 
 ## Integrations (progressive versions, not MVP)
 - Dólar (dolarapi + full history sync). spoti-pobre. open-nb (rewrite, DB→Postgres, double mode). Downloads (Cobalt + spotdl + FFmpeg). Search (You.com; free fallback DuckDuckGo). Discord bot (private, same Docker, userID-locked). See `features.md`.

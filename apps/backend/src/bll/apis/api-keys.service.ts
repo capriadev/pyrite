@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from 'crypto';
 import { ApiKeysRepository, type ApiKeyRow } from '../../dal/apis/api-keys.repository';
 import { CryptoService } from '../../services/crypto/crypto.service';
 import { AuthService } from '../auth/auth.service';
+import { GroupsService } from '../groups/groups.service';
 import { getProviderClient } from '../../integrations/providers/index';
 import { type ProviderStatus } from '../../integrations/providers/provider.types';
 
@@ -24,6 +25,7 @@ export class ApiKeysService {
     private readonly repo: ApiKeysRepository,
     private readonly crypto: CryptoService,
     private readonly auth: AuthService,
+    private readonly groups: GroupsService,
   ) {}
 
   private requireUnlocked(): string {
@@ -102,18 +104,18 @@ export class ApiKeysService {
     await this.repo.updateGroup(id, groupId);
   }
 
-  // ============ GROUPS ============
+  // ============ GROUPS (delegated to shared GroupsService, domain 'apis') ============
 
-  async listGroups() {
-    return this.repo.findGroups();
+  listGroups() {
+    return this.groups.list('apis');
   }
 
-  async createGroup(input: CreateGroupInput) {
-    return this.repo.createGroup(input.name);
+  createGroup(input: CreateGroupInput) {
+    return this.groups.create('apis', input.name);
   }
 
-  async removeGroup(id: string): Promise<void> {
-    await this.repo.softDeleteGroup(id);
+  removeGroup(id: string): Promise<void> {
+    return this.groups.remove('apis', id);
   }
 
   private mask(r: ApiKeyRow): Omit<ApiKeyRow, 'ciphertext' | 'iv' | 'authTag' | 'salt'> {

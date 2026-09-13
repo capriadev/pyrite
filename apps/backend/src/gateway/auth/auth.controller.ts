@@ -29,7 +29,7 @@ export class AuthController {
     @Param('section') section: string,
     @Body() body: { passphrase: string },
   ): Promise<{ ok: boolean }> {
-    if (!['notes', 'apis', 'vault', 'counts'].includes(section)) {
+    if (!this.auth.validSection(section)) {
       throw new HttpException({ ok: false, message: 'invalid section' }, HttpStatus.BAD_REQUEST);
     }
     const ok = await this.auth.unlockSection(section as SectionName, body.passphrase);
@@ -43,7 +43,7 @@ export class AuthController {
       this.auth.lockAll();
       return { ok: true };
     }
-    if (!['notes', 'apis', 'vault', 'counts'].includes(section)) {
+    if (!this.auth.validSection(section)) {
       throw new HttpException({ ok: false, message: 'invalid section' }, HttpStatus.BAD_REQUEST);
     }
     this.auth.lockSection(section as SectionName);
@@ -55,7 +55,7 @@ export class AuthController {
     @Param('section') section: string,
     @Body() body: { passphrase: string },
   ): Promise<{ ok: boolean }> {
-    if (!['notes', 'apis', 'vault', 'counts'].includes(section)) {
+    if (!this.auth.validSection(section)) {
       throw new HttpException({ ok: false, message: 'invalid section' }, HttpStatus.BAD_REQUEST);
     }
     const alreadySet = await this.auth.isSectionSet(section as SectionName);

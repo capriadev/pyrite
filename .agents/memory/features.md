@@ -18,3 +18,4 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #9 Finances UI - UI de finances; al iniciarse se dispara la sub-spec C (graficos/filtros, spec 005) [status: pending]
 #10 Backend restructure - subcarpetas por dominio en dal/bll/gateway, crypto a services, auth separado [spec: 008-backend-restructure.md] [status: completed]
 #11 Fix drizzle location - mover schema/migrations/config a apps/backend, build limpio (rootDir ".", dist/src/main.js), scripts orm con cd apps/backend [spec: 009-fix-drizzle-location.md] [status: completed]
+#12 Notes backend - notas cifradas con modo privado (seccion notes_private), busqueda por titulo/contenido, tabla groups unificada por dominio (apis/notes) [spec: 010-notes-backend.md] [status: active]

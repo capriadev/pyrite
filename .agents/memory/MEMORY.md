@@ -9,13 +9,13 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 -->
 
 ## Last session
-- 2026-09-06: Spec #3 config en DB completado y verificado end-to-end (settings persisten tras restart). Bloque de puertos 30k (prod 30000-30019, test 301xx). Dos DBs: pyrite + pyrite_test. Compose usa volumenes externos docker_* (datos existentes).
+- 2026-09-12: Spec #12 (Notes backend) implementada y verificada end-to-end. PR #13 (feat/notes -> main), pendiente de merge. Reorg de capas por dominio (spec #10) y fix drizzle (spec #11) ya en main/rama. Migracion 0005_notes_and_unified_groups aplicada en test y prod. Smoke confirmo: CRUD cifrado, modo privado con lock real (fix de fuga de contenido cerrado), busqueda, groups unificados por dominio, soft-delete, y 409 en grupo duplicado.
 
 ## Next up
-- Spec #4: Auth core + crypto en capas (3 niveles de p1b). Requiere sesion de planificacion previa (master key, sesiones).
-- Finances (fuente de verdad de montos) -> Tasks + recurrencia -> Calendar + reconciliacion -> Dashboard.
-- Webs/APIs trae la tabla api_keys + validadores.
-- Pendiente: resolver drizzle-kit migrate falla silencioso (ver errors/) - investigar compatibilidad kit 0.31 vs orm 0.45.
+- Mergear PR #13 (feat/notes). Al mergear: cerrar spec #12 (quitar linea de features.md, marcar spec completed).
+- Notes UI (frontend): pendiente. Ideas anotadas: carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con carpetas/pin arriba, busqueda titulo/contenido, filtros (todos/destacado/grupo/fecha), modal de passphrase para privadas. Correr react-doctor tras cambios de UI.
+- Counts backend -> luego Calendar -> Tasks -> unificar Calendar+ambos -> motor de errores de finanzas con Calendar y Task.
+- Finances UI (spec #9) al iniciarse dispara la sub-spec C (graficos/filtros, spec 005).
 
 ## Open decisions (unresolved, blocking or not)
 - (ninguna bloqueante)

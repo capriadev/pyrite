@@ -3,7 +3,7 @@ import { CryptoService, type CanaryData } from '../../services/crypto/crypto.ser
 import { SettingsRepository } from '../../dal/settings/settings.repository';
 import { type SectionName } from '../../services/crypto/crypto-config';
 
-const SECTIONS: SectionName[] = ['notes', 'apis', 'vault', 'counts'];
+const SECTIONS: SectionName[] = ['notes', 'notes_private', 'apis', 'vault', 'counts'];
 
 /**
  * AuthService manages unlock state per section and the login barrier.
@@ -101,6 +101,10 @@ constructor(
       result[s] = this.isSectionUnlocked(s);
     }
     return result;
+  }
+
+  validSection(section: string): boolean {
+    return SECTIONS.includes(section as SectionName);
   }
 
   lockAll(): void {

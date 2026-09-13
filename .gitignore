@@ -28,7 +28,14 @@ backup_*.sql
 *.sql.bak
 
 # logs
-logs/
+logs/*
+!logs/backend/
+!logs/frontend/
+!logs/bot-discord/
+logs/backend/*
+logs/frontend/*
+logs/bot-discord/*
+!logs/**/.gitkeep
 *.log
 npm-debug.log*
 

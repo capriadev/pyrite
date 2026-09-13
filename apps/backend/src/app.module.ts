@@ -7,12 +7,14 @@ import { GatewayModule } from './gateway/gateway.module';
 import { ServicesModule } from './services/services.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { CryptoModule } from './services/crypto/crypto.module';
+import { LoggerModule } from './services/logger/logger.module';
 import { AuthModule } from './gateway/auth/auth.module';
 
 @Module({
   imports: [
-    ConfigModule, DalModule, RedisModule, ServicesModule, BllModule,
+    ConfigModule, DalModule, RedisModule, ServicesModule, LoggerModule, BllModule,
     GatewayModule, IntegrationsModule, CryptoModule, AuthModule,
   ],
 })
 export class AppModule {}
+

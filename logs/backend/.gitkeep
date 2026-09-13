@@ -1,0 +1,2 @@
+Backend logs. Files are written at runtime as JSON Lines and are gitignored;
+this folder is kept in the repo so the tree exists on a fresh clone.

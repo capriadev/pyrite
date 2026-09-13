@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CryptoService, type CanaryData } from '../../services/crypto/crypto.service';
 import { SettingsRepository } from '../../dal/settings/settings.repository';
 import { type SectionName } from '../../services/crypto/crypto-config';
@@ -16,6 +16,7 @@ export class AuthService implements OnModuleInit {
   private passphrases = new Map<SectionName | 'login', string>();
   private unlockedAt = new Map<SectionName | 'login', number>();
   private ttlMs = 5 * 60 * 1000;
+  private readonly log = new Logger(AuthService.name);
 constructor(
     private readonly crypto: CryptoService,
     private readonly settings: SettingsRepository,
@@ -33,11 +34,17 @@ constructor(
 
   async login(password: string): Promise<boolean> {
     const row = await this.settings.findByKey('auth.password_hash');
-    if (!row) return false;
+    if (!row) {
+      this.log.warn('login intentado sin password configurado');
+      return false;
+    }
     const valid = await this.crypto.verifyPassword(password, row.value as string);
     if (valid) {
       this.passphrases.set('login', '');
       this.unlockedAt.set('login', Date.now());
+      this.log.log('login exitoso');
+    } else {
+      this.log.warn('login fallido: password invalido');
     }
     return valid;
   }
@@ -45,6 +52,7 @@ constructor(
   async setLoginPassword(password: string): Promise<void> {
     const { hash } = await this.crypto.hashPassword(password);
     await this.settings.upsert('auth.password_hash', hash);
+    this.log.log('password de login configurado');
   }
 
   isLoginUnlocked(): boolean {
@@ -60,12 +68,18 @@ constructor(
 
   async unlockSection(section: SectionName, passphrase: string): Promise<boolean> {
     const canaryRow = await this.settings.findByKey(`${section}.canary`);
-    if (!canaryRow) return false;
+    if (!canaryRow) {
+      this.log.warn(`unlock de ${section} fallido: seccion sin canary configurado`, { section });
+      return false;
+    }
     const canary = canaryRow.value as unknown as CanaryData;
     const valid = await this.crypto.verifyCanary(passphrase, section, canary);
     if (valid) {
       this.passphrases.set(section, passphrase);
       this.unlockedAt.set(section, Date.now());
+      this.log.log(`seccion ${section} desbloqueada`, { section });
+    } else {
+      this.log.warn(`unlock de ${section} fallido: passphrase invalida`, { section });
     }
     return valid;
   }
@@ -73,6 +87,7 @@ constructor(
   lockSection(section: SectionName): void {
     this.passphrases.delete(section);
     this.unlockedAt.delete(section);
+    this.log.log(`seccion ${section} bloqueada`, { section });
   }
 
   isSectionUnlocked(section: SectionName): boolean {
@@ -93,6 +108,7 @@ constructor(
   async setSectionPassphrase(section: SectionName, passphrase: string): Promise<void> {
     const canary = await this.crypto.createCanary(passphrase, section);
     await this.settings.upsert(`${section}.canary`, canary as unknown as Record<string, unknown>);
+    this.log.log(`passphrase de la seccion ${section} configurada`, { section });
   }
 
   status(): Record<string, boolean> {
@@ -110,6 +126,7 @@ constructor(
   lockAll(): void {
     this.passphrases.clear();
     this.unlockedAt.clear();
+    this.log.log('todas las secciones bloqueadas');
   }
 
   // ============ PRIVATE ============

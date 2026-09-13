@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'crypto';
 import { NotesRepository, type NoteRow } from '../../dal/notes/notes.repository';
 import { SettingsRepository } from '../../dal/settings/settings.repository';
@@ -39,6 +39,7 @@ export class NotesService {
    * which is the single source of truth for unlock state.
    */
   private sectionKeys = new Map<'notes' | 'notes_private', Buffer>();
+  private readonly log = new Logger(NotesService.name);
 
   constructor(
     private readonly repo: NotesRepository,
@@ -96,6 +97,7 @@ export class NotesService {
       pinned: input.pinned ? 'true' : 'false',
       groupId: input.groupId ?? null,
     });
+    this.log.log('nota creada', { noteId: id, section, groupId: input.groupId ?? null });
     return this.toListItem(row, input.content);
   }
 
@@ -113,7 +115,11 @@ export class NotesService {
         const key = await this.deriveSectionKey(section);
         const content = this.crypto.decrypt(this.toEncrypted(row), key, Buffer.from(row.id));
         results.push(this.toListItem(row, content));
-      } catch {
+      } catch (err: unknown) {
+        this.log.warn(`nota ${row.id} no se pudo descifrar en list: ${err instanceof Error ? err.message : err}`, {
+          noteId: row.id,
+          section,
+        });
         results.push(this.toListItem(row, '', true));
       }
     }
@@ -125,9 +131,17 @@ export class NotesService {
     if (!row) throw new NotFoundException('note not found');
     const section = row.isPrivate === 'true' ? 'notes_private' : 'notes';
     const key = await this.deriveSectionKey(section);
-    const content = this.crypto.decrypt(this.toEncrypted(row), key, Buffer.from(row.id));
-    await this.repo.touchAccessed(id);
-    return { content };
+    try {
+      const content = this.crypto.decrypt(this.toEncrypted(row), key, Buffer.from(row.id));
+      await this.repo.touchAccessed(id);
+      return { content };
+    } catch (err: unknown) {
+      this.log.error(`descifrado de la nota ${id} fallo: ${err instanceof Error ? err.message : err}`, {
+        noteId: id,
+        section,
+      });
+      throw err;
+    }
   }
 
   // ============ SEARCH ============
@@ -151,8 +165,11 @@ export class NotesService {
         if (content.toLowerCase().includes(q)) {
           results.push(this.toListItem(row, content));
         }
-      } catch {
-        // skip undecryptable in search
+      } catch (err: unknown) {
+        this.log.warn(`nota ${row.id} no se pudo descifrar en search: ${err instanceof Error ? err.message : err}`, {
+          noteId: row.id,
+          section,
+        });
       }
     }
     return results;
@@ -171,6 +188,7 @@ export class NotesService {
       iv: encrypted.iv,
       authTag: encrypted.authTag,
     });
+    this.log.log(`contenido de la nota ${id} actualizado`, { noteId: id, section });
   }
 
   async updateMeta(id: string, meta: { title?: string; groupId?: string | null; pinned?: boolean }): Promise<void> {
@@ -181,6 +199,7 @@ export class NotesService {
     if (meta.groupId !== undefined) patch.groupId = meta.groupId ?? null;
     if (meta.pinned !== undefined) patch.pinned = meta.pinned ? 'true' : 'false';
     await this.repo.update(id, patch);
+    this.log.log(`metadatos de la nota ${id} actualizados`, { noteId: id, fields: Object.keys(patch) });
   }
 
   async setPrivate(id: string, isPrivate: boolean): Promise<void> {
@@ -196,10 +215,12 @@ export class NotesService {
       authTag: encrypted.authTag,
       isPrivate: isPrivate ? 'true' : 'false',
     });
+    this.log.log(`nota ${id} movida a ${target}`, { noteId: id, section: target });
   }
 
   async remove(id: string): Promise<void> {
     await this.repo.softDelete(id);
+    this.log.log(`nota ${id} eliminada (soft)`, { noteId: id });
   }
 
   // ============ GROUPS (delegated) ============

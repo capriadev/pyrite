@@ -1,5 +1,7 @@
 # 010 Notes backend
 
+Status: completed (merged in PR #13).
+
 ## Objective
 Add the Notes domain (backend only): encrypted notes with private mode, shared-salt
 searchable content, and a unified cross-domain groups table.

@@ -1,6 +1,6 @@
 # Features - SDD index | delete when complete | new ID = last_id + 1
 
-last_id: 12
+last_id: 13
 
 <!--
 One line per feature. Planned features may be registered here without a spec yet (status: pending); a spec is opened when the feature is planned and ready to develop. When a feature is COMPLETE: remove its line here and mark the spec status as completed. SPECS ARE NEVER DELETED - specs/ is a permanent registry, the numbering exists for that. Never reuse an ID; last_id only grows.
@@ -18,4 +18,3 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #9 Finances UI - UI de finances; al iniciarse se dispara la sub-spec C (graficos/filtros, spec 005) [status: pending]
 #10 Backend restructure - subcarpetas por dominio en dal/bll/gateway, crypto a services, auth separado [spec: 008-backend-restructure.md] [status: completed]
 #11 Fix drizzle location - mover schema/migrations/config a apps/backend, build limpio (rootDir ".", dist/src/main.js), scripts orm con cd apps/backend [spec: 009-fix-drizzle-location.md] [status: completed]
-#12 Notes backend - notas cifradas con modo privado (seccion notes_private), busqueda por titulo/contenido, tabla groups unificada por dominio (apis/notes) [spec: 010-notes-backend.md] [status: active]

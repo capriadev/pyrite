@@ -10,6 +10,7 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 
 ## Last session
 - 2026-09-13: Sesion de docs (rama docs/refresh): MEMORY al dia (logging mergeado, puerto corregido a 30010), architecture con la fila de Logging y la distincion config app/usuario (DB) vs config backend/infra (.env), capa types/, layout con logs/ y .github/; feature #6 (APIs) marcada completed y sacada del indice. Sin cambios en specs/ (registro permanente).
+- 2026-09-14: Migracion 0006 (counts) generada y aplicada en pyrite y pyrite_test (rama feat/counts); datos previos intactos. Reconstruido el snapshot 0005 que faltaba y corregida la API de constraints de schema.ts (array de builders en vez de objeto), que era la causa silenciosa del drift destructivo del generate (ver errors/drizzle-enum-y-constraint-drift). Proximo: Counts Part A (DAL -> BLL -> gateway).
 
 ## Next up
 - Notes UI (frontend): carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con carpetas/pin arriba, busqueda titulo/contenido, filtros (todos/destacado/grupo/fecha), modal de passphrase para privadas. Correr react-doctor tras cambios de UI.
@@ -24,7 +25,7 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 ## Watch / don't forget
 - Never use emojis or em dashes (—) in anything written for the project (docs, READMEs, commits, UI copy). Plain ASCII punctuation only.
 - Host port de Postgres es 30010 (mapeo 30010:5432 en docker-compose; DB_PORT=30010 en .env.example). Otros proyectos locales ocupan el 5432 del host, por eso el mapeo no es 5432.
-- El volumen postgres-data se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.
+- El contenedor pyrite-postgres monta el volumen docker_postgres-data (el vivo, con los datos reales); pyrite_postgres-data quedo huerfano y vacio. Se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.
 - NO levantar servicios ni infraestructura (docker, dev servers) sin pedido explícito del usuario.
 - drizzle vive en apps/backend/drizzle (schema.ts + migrations) con apps/backend/drizzle.config.ts y scripts orm con `cd apps/backend`. El build backend usa rootDir "." y emite a dist/src/main.js (sin prefijo apps/backend). Los scripts orm raíz hacen `cd apps/backend && drizzle-kit <cmd>` (el config usa paths relativos al cwd).
 - Runtime decidido: Node 24.20.0 gestionado con nvm (.nvmrc en raíz, engines >=24.20 <25). Cambiar de major solo con decisión explícita del usuario. Migración 22->24 completada y verificada (tsc/build/health OK, cero cambios de código: la guía oficial nodejs.org/en/blog/migrations/v22-to-v24 no afecta a nuestro stack). Nota a futuro: OpenSSL 3.5 security level 2 en Node 24 prohibe claves RSA/DSA/DH < 2048 bits - tenerlo en cuenta en el spec de seguridad/auth.

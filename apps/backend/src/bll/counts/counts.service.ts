@@ -1,32 +1,12 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'crypto';
-import {
-  CountsRepository,
-  type CountsAccountPatch,
-  type CountsAccountRow,
-  type CountsListFilters,
-  type CredentialType,
-} from '../../dal/counts/counts.repository';
+import { CountsRepository, type CountsAccountPatch, type CountsAccountRow, type CountsListFilters, type CredentialType } from '../../dal/counts/counts.repository';
 import { countsPasswordHistory } from '../../../drizzle/schema';
 import { CryptoService } from '../../services/crypto/crypto.service';
 import { AuthService } from '../auth/auth.service';
 import { GroupsService } from '../groups/groups.service';
 import { SettingsService } from '../settings/settings.service';
-import {
-  SECRET_FIELDS,
-  encryptedPatch,
-  fieldCipher,
-  isSecretField,
-  secretAad,
-  type SecretField,
-} from './counts-fields';
+import { SECRET_FIELDS, encryptedPatch, fieldCipher, isSecretField, secretAad, type SecretField } from './counts-fields';
 import { scorePassword } from './password-strength';
 import { isUuid, type CountsAccountInput } from './counts-input';
 
@@ -209,8 +189,8 @@ export class CountsService {
       await this.repo.update(id, patch);
     }
 
-    this.log.log('cuenta actualizada', { accountId: id, fields: Object.keys(patch) });
     if (input.groupIds !== undefined) await this.applyGroups(id, input.groupIds);
+    this.log.log('cuenta actualizada', { accountId: id, fields: Object.keys(patch) });
     return this.viewOne(await this.requireAccount(id));
   }
 

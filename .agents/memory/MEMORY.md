@@ -10,20 +10,25 @@ Update at end of session / significant checkpoint. Prune what's stale - this is 
 
 ## Last session
 - 2026-09-13: Sesion de docs (rama docs/refresh): MEMORY al dia (logging mergeado, puerto corregido a 30010), architecture con la fila de Logging y la distincion config app/usuario (DB) vs config backend/infra (.env), capa types/, layout con logs/ y .github/; feature #6 (APIs) marcada completed y sacada del indice. Sin cambios en specs/ (registro permanente).
-- 2026-09-14: Migracion 0006 (counts) generada y aplicada en pyrite y pyrite_test (rama feat/counts); datos previos intactos. Reconstruido el snapshot 0005 que faltaba y corregida la API de constraints de schema.ts (array de builders en vez de objeto), que era la causa silenciosa del drift destructivo del generate (ver errors/drizzle-enum-y-constraint-drift). Proximo: Counts Part A (DAL -> BLL -> gateway).
+- 2026-09-14: Migracion 0006 (counts) generada y aplicada en pyrite y pyrite_test (rama feat/counts); datos previos intactos. Reconstruido el snapshot 0005 que faltaba y corregida la API de constraints de schema.ts (array de builders en vez de objeto), que era la causa silenciosa del drift destructivo del generate (ver errors/drizzle-enum-y-constraint-drift).
+- 2026-09-14 (Counts Part A): DAL -> BLL -> gateway de counts commiteado en feat/counts (bd57602 repositorio, 509fca3 BLL, 8a808ce gateway). tsc limpio; scorer de fortaleza validado a mano (abc=0, password=10, correct horse battery staple 2026=94.5). Falta change-passphrase: unico criterio abierto de la spec 012.
 
 ## Next up
 - Notes UI (frontend): carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con carpetas/pin arriba, busqueda titulo/contenido, filtros (todos/destacado/grupo/fecha), modal de passphrase para privadas. Correr react-doctor tras cambios de UI.
 - Counts backend -> luego Calendar -> Tasks -> unificar Calendar+ambos -> motor de errores de finanzas con Calendar y Task.
 - Finances UI (spec #9) al iniciarse dispara la sub-spec C (graficos/filtros, spec 005).
+- Counts: falta POST /auth/change-passphrase/:section (re-cifrado del vault, canary nuevo al final, un fallo deja la passphrase vieja andando) y la verificacion en vivo de los endpoints con la seccion counts desbloqueada.
 - Purge dedicado de logs (hoy la retencion por dias la hace purgeExpired() en logger.service.ts al arrancar).
 - Poda de ramas locales/remotas ya mergeadas; destructivo, requiere confirmacion explicita del usuario.
 
 ## Open decisions (unresolved, blocking or not)
 - `satellite-services/` esta untracked: definir si el codigo vendoreado se commitea o va a .gitignore (local-only). No bloquea.
+- `backup.ps1` (raiz) aparece modificado en el working tree y no lo tocamos nosotros: confirmar si el cambio (Resolve-AutoPath para DbUser/DbName) se commitea o se descarta.
 
 ## Watch / don't forget
 - Never use emojis or em dashes (—) in anything written for the project (docs, READMEs, commits, UI copy). Plain ASCII punctuation only.
+- Counts: `counts.service.ts` quedo en 442 lineas (el mas grande del backend; notes 270). Antes de sumarle el re-cifrado de change-passphrase: separar las auditorias en su propio servicio y las primitivas del vault en un modulo compartido (propuesta presentada, sin ejecutar).
+- Counts: el umbral de la auditoria de fortaleza es la key `counts.weak_threshold` de settings (default 50 en codigo). `counts.stale_days` figura en la spec 012 pero todavia no tiene consumidor: crearlo recien al implementar el recordatorio de rotacion.
 - Host port de Postgres es 30010 (mapeo 30010:5432 en docker-compose; DB_PORT=30010 en .env.example). Otros proyectos locales ocupan el 5432 del host, por eso el mapeo no es 5432.
 - El contenedor pyrite-postgres monta el volumen docker_postgres-data (el vivo, con los datos reales); pyrite_postgres-data quedo huerfano y vacio. Se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.
 - NO levantar servicios ni infraestructura (docker, dev servers) sin pedido explícito del usuario.

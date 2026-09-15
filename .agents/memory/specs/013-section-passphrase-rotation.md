@@ -4,11 +4,13 @@ Status: active (branch feat/section-key-rotation).
 
 ## Objective
 Rotate the passphrase of any section (`notes`, `notes_private`, `apis`, `vault`, `counts`)
-in the background: the new ciphertexts are staged while the live data keeps working with the
+in the background: the new ciphertexts are staged while the live data keeps being read with the
 old passphrase, and the change is applied at the end in one atomic swap of the canary.
 Interruptions resume and failures roll back, so at any instant the whole section answers to
-either the old passphrase or the new one, never to a mix. No recovery, ever: rotation always
-requires the current passphrase plus the new one in the same request (012).
+either the old passphrase or the new one, never to a mix. While the job is open the section is
+read-only: viewing keeps working and create/edit/delete are rejected until it finishes or is
+cancelled. No recovery, ever: rotation always requires the current passphrase plus the new one
+in the same request (012).
 
 ## Current state (pre-check before this spec)
 Four different key models coexist today, which is what makes one single rotation path
@@ -110,6 +112,13 @@ Recovery rules (what happens after an interruption):
   covers cancel or failure and drops them, without touching live data. Neither alone is enough:
   rollback-only throws away a long phase for nothing, resume-only cannot clean up a job nobody
   wants anymore.
+- **The section is read-only while a job is open** (viewing keeps working; create, edit and
+  delete answer 409 with the job status). A row created or edited during staging would not be
+  in the staged set, so the apply would leave it encrypted with the old key and unreadable with
+  the new passphrase. Blocking writes is the cheap correct fix for a single-user operation that
+  lasts moments to minutes; the alternative (re-stage at apply every row touched since the
+  snapshot) adds bookkeeping with no real gain. The frontend turns that 409 into "rotation in
+  progress, retry" and can poll the status endpoint.
 - **The job is durable, the passphrase is not.** Progress lives in `rotation_staging`. Resuming
   asks for both passphrases again (single-user, manual, rare operation) and verifies `next`
   against the pending canary, so no passphrase or key is ever persisted and zero-knowledge is

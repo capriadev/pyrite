@@ -176,7 +176,8 @@ export class ApiKeysService {
     if (rows.length === 0) return 0;
 
     const already = await this.stagedRecordIds(jobId);
-    let staged = 0;
+    const alreadyStaged = already.size;
+    let staged = alreadyStaged;
     for (const row of rows) {
       if (already.has(row.id)) continue;
       const aad = Buffer.from(row.id);
@@ -201,7 +202,7 @@ export class ApiKeysService {
       await report(staged);
     }
 
-    return staged;
+    return staged - alreadyStaged;
   }
 
   /** Write-back inside the apply transaction: ciphertext, iv and tag; the salt stays as is. */

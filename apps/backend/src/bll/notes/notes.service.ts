@@ -291,7 +291,8 @@ export class NotesService {
     const newKey = await this.keys.deriveSectionKey(to, section);
     const salt = newKey.toString('base64');
 
-    let staged = 0;
+    const alreadyStaged = already.size;
+    let staged = alreadyStaged;
     for (const row of rows) {
       if (already.has(row.id)) continue;
       const content = this.crypto.decrypt(this.toEncrypted(row), oldKey, Buffer.from(row.id));
@@ -309,8 +310,8 @@ export class NotesService {
       staged += 1;
     }
 
-    if (staged > 0) await report(staged);
-    return staged;
+    if (staged > alreadyStaged) await report(staged);
+    return staged - alreadyStaged;
   }
 
   /** Write-back inside the apply transaction: ciphertext, iv, tag and the new key copy. */

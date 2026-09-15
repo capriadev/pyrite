@@ -426,7 +426,8 @@ export class CountsService {
     if (accounts.length === 0 && history.length === 0) return 0;
 
     const already = await this.stagedUnitIds(jobId);
-    let staged = 0;
+    const alreadyStaged = already.size;
+    let staged = alreadyStaged;
 
     for (const row of accounts) {
       if (already.has(this.unitKey(COUNT_ACCOUNTS_TABLE, row.id))) continue;
@@ -478,7 +479,7 @@ export class CountsService {
       await report(staged);
     }
 
-    return staged;
+    return staged - alreadyStaged;
   }
 
   /** Write-back inside the apply transaction: the secret column sets and the history rows. */

@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
   foreignKey,
+  integer,
   jsonb,
   numeric,
   pgEnum,
@@ -8,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -230,4 +233,60 @@ export const groups = pgTable('groups', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique('groups_domain_name_key').on(t.domain, t.name),
+]);
+
+// ============================================================
+// Rotation (section passphrase change, spec 013)
+// ============================================================
+
+export const rotationStatusEnum = pgEnum('rotation_status', [
+  'staging',
+  'applying',
+  'done',
+  'failed',
+  'interrupted',
+]);
+
+/**
+ * One passphrase rotation per section. At most one open job per section
+ * (unique partial index), so starting while a job is open resumes it instead
+ * of piling up work. `pending_canary` is the canary of the new passphrase,
+ * kept encrypted under it: it is what a resume verifies against. Progress
+ * lives here so it survives a restart; the passphrases never do.
+ */
+export const rotationJobs = pgTable('rotation_jobs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  section: text('section').notNull(),
+  status: rotationStatusEnum('status').notNull().default('staging'),
+  total: integer('total').notNull().default(0),
+  processed: integer('processed').notNull().default(0),
+  pendingCanary: jsonb('pending_canary').$type<Record<string, unknown>>().notNull(),
+  error: text('error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('rotation_jobs_section_open_key')
+    .on(t.section)
+    .where(sql`status in ('staging', 'applying', 'interrupted')`),
+]);
+
+/**
+ * Durable staging of the new ciphertexts. One row per write-back unit
+ * (an account for counts, a note or api key row elsewhere), written
+ * incrementally while staging and dropped on apply or cancel. Payload holds
+ * the columns to write back, ciphertext included, never plaintext.
+ */
+export const rotationStaging = pgTable('rotation_staging', {
+  jobId: uuid('job_id')
+    .notNull()
+    .references(() => rotationJobs.id, { onDelete: 'cascade' }),
+  targetTable: text('target_table').notNull(),
+  rowId: uuid('row_id').notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+  stagedAt: timestamp('staged_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({
+    name: 'rotation_staging_pk',
+    columns: [t.jobId, t.targetTable, t.rowId],
+  }),
 ]);

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
+import { DRIZZLE_DB, type DrizzleDb, type DrizzleTx } from '../drizzle.provider';
 import { apiKeys } from '../../../drizzle/schema';
 
 export interface ApiKeyRow {
@@ -18,6 +18,14 @@ export interface ApiKeyRow {
   lastChecked: Date | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Columns a rotation apply writes back: the ciphertext only, the record salt stays as is. */
+export interface ApiKeyRewrite {
+  id: string;
+  ciphertext: string;
+  iv: string;
+  authTag: string;
 }
 
 @Injectable()
@@ -57,6 +65,31 @@ export class ApiKeysRepository {
 
   async updateGroup(id: string, groupId: string | null): Promise<void> {
     await this.db.update(apiKeys).set({ groupId: groupId ?? null }).where(eq(apiKeys.id, id));
+  }
+
+  /** Every row of the section, soft-deleted included: a stale ciphertext is a latent bug. */
+  async findForRotation(): Promise<ApiKeyRow[]> {
+    const rows = await this.db.select().from(apiKeys);
+    return rows.map((r) => this.mapRow(r));
+  }
+
+  /**
+   * Write-back of a rotation apply: only the ciphertext columns, inside the transaction the
+   * caller commits with the new canary. The per-record salt is part of the key material, so
+   * rotating the passphrase leaves it untouched.
+   */
+  async applyRotation(tx: DrizzleTx, rows: ApiKeyRewrite[]): Promise<number> {
+    let applied = 0;
+    for (const row of rows) {
+      const { id, ...data } = row;
+      const updated = await tx
+        .update(apiKeys)
+        .set(data as never)
+        .where(eq(apiKeys.id, id))
+        .returning({ id: apiKeys.id });
+      applied += updated.length;
+    }
+    return applied;
   }
 
   private mapRow(r: typeof apiKeys.$inferSelect): ApiKeyRow {

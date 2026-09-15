@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
+import { DRIZZLE_DB, type DrizzleDb, type DrizzleTx } from '../drizzle.provider';
 import { settings } from '../../../drizzle/schema';
 
 /**
@@ -20,7 +20,16 @@ export class SettingsRepository {
   }
 
   async upsert(key: string, value: unknown): Promise<void> {
-    await this.db
+    await this.persist(this.db, key, value);
+  }
+
+  /** Same write inside an ongoing transaction (rotation apply, spec 013). */
+  async upsertInTx(tx: DrizzleTx, key: string, value: unknown): Promise<void> {
+    await this.persist(tx, key, value);
+  }
+
+  private async persist(db: DrizzleDb, key: string, value: unknown): Promise<void> {
+    await db
       .insert(settings)
       .values({ key, value })
       .onConflictDoUpdate({ target: settings.key, set: { value } });

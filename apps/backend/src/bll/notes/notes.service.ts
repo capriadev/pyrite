@@ -1,15 +1,24 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { randomBytes, randomUUID } from 'crypto';
-import { NotesRepository, type NoteRow } from '../../dal/notes/notes.repository';
-import { SettingsRepository } from '../../dal/settings/settings.repository';
+﻿import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import {
+  NotesRepository,
+  type NoteRewrite,
+  type NoteRow,
+} from '../../dal/notes/notes.repository';
+import { RotationRepository, type RotationStagingRow } from '../../dal/rotation/rotation.repository';
+import type { DrizzleTx } from '../../dal/drizzle.provider';
 import { CryptoService } from '../../services/crypto/crypto.service';
+import { SectionKeysService } from '../../services/crypto/section-keys';
 import { AuthService } from '../auth/auth.service';
 import { GroupsService } from '../groups/groups.service';
+import { SectionWriteGuard } from '../rotation/section-write-guard';
+import type { SectionRotator, StageReporter } from '../rotation/section-rotator';
 
-const SALT_KEYS: Record<string, string> = {
-  notes: 'notes.salt',
-  notes_private: 'notes_private.salt',
-};
+/** Physical table both note sections write to; the private flag is what picks the key. */
+const NOTES_TABLE = 'notes';
+
+/** Columns of a staged unit: everything the apply writes back except the row id. */
+type NotePayload = Omit<NoteRewrite, 'id'>;
 
 export interface CreateNoteInput {
   title: string;
@@ -34,18 +43,35 @@ export interface NoteListItem {
 @Injectable()
 export class NotesService {
   /**
-   * Derived keys cached while each section is unlocked (shared salt).
-   * Cache is only served after re-validating the lock against AuthService,
-   * which is the single source of truth for unlock state.
+   * `notes` and `notes_private` as rotators (spec 013). Both sections share one table, so
+   * each one walks the rows that carry its own flag: rotating notes never touches the
+   * private rows and the other way around.
    */
-  private sectionKeys = new Map<'notes' | 'notes_private', Buffer>();
+  readonly rotators: SectionRotator[] = [
+    {
+      section: 'notes',
+      countUnits: () => this.countUnits('notes'),
+      stage: (jobId, from, to, report) => this.stageSection(jobId, 'notes', from, to, report),
+      apply: (tx, staged) => this.applySection(tx, staged),
+    },
+    {
+      section: 'notes_private',
+      countUnits: () => this.countUnits('notes_private'),
+      stage: (jobId, from, to, report) =>
+        this.stageSection(jobId, 'notes_private', from, to, report),
+      apply: (tx, staged) => this.applySection(tx, staged),
+    },
+  ];
+
   private readonly log = new Logger(NotesService.name);
 
   constructor(
     private readonly repo: NotesRepository,
-    private readonly settings: SettingsRepository,
+    private readonly rotation: RotationRepository,
     private readonly crypto: CryptoService,
     private readonly auth: AuthService,
+    private readonly keys: SectionKeysService,
+    private readonly guard: SectionWriteGuard,
     private readonly groups: GroupsService,
   ) {}
 
@@ -53,36 +79,23 @@ export class NotesService {
     return this.auth.isSectionUnlocked(section);
   }
 
+  /**
+   * Key of a section, through the shared key module (one derivation for the whole section,
+   * cached per passphrase). A missing unlock state drops the entry instead of serving it.
+   */
   private async deriveSectionKey(section: 'notes' | 'notes_private'): Promise<Buffer> {
-    if (!this.isUnlocked(section)) {
-      this.sectionKeys.delete(section);
-      throw new ForbiddenException(`${section} section is locked`);
-    }
-    const cached = this.sectionKeys.get(section);
-    if (cached) return cached;
     const passphrase = this.auth.getSectionPassphrase(section);
     if (!passphrase) {
-      this.sectionKeys.delete(section);
+      this.keys.evict(section);
       throw new ForbiddenException(`${section} section is locked`);
     }
-    const saltKey = SALT_KEYS[section];
-    const saltRow = await this.settings.findByKey(saltKey);
-    let salt: Buffer;
-    if (saltRow) {
-      salt = Buffer.from(saltRow.value as string, 'base64');
-    } else {
-      salt = randomBytes(16);
-      await this.settings.upsert(saltKey, salt.toString('base64'));
-    }
-    const key = await this.crypto.deriveKey(passphrase, section, salt);
-    this.sectionKeys.set(section, key);
-    return key;
+    return this.keys.sectionKey(passphrase, section);
   }
-
   // ============ CREATE / READ ============
 
   async create(input: CreateNoteInput): Promise<NoteListItem> {
     const section = input.isPrivate ? 'notes_private' : 'notes';
+    this.guard.assertWritable(section);
     const key = await this.deriveSectionKey(section);
     const id = randomUUID();
     const encrypted = this.crypto.encrypt(input.content, key, Buffer.from(id));
@@ -107,7 +120,6 @@ export class NotesService {
     for (const row of rows) {
       const section = row.isPrivate === 'true' ? 'notes_private' : 'notes';
       if (!this.isUnlocked(section)) {
-        this.sectionKeys.delete(section);
         results.push(this.toListItem(row, '', true));
         continue;
       }
@@ -116,10 +128,10 @@ export class NotesService {
         const content = this.crypto.decrypt(this.toEncrypted(row), key, Buffer.from(row.id));
         results.push(this.toListItem(row, content));
       } catch (err: unknown) {
-        this.log.warn(`nota ${row.id} no se pudo descifrar en list: ${err instanceof Error ? err.message : err}`, {
-          noteId: row.id,
-          section,
-        });
+        this.log.warn(
+          `nota ${row.id} no se pudo descifrar en list: ${err instanceof Error ? err.message : err}`,
+          { noteId: row.id, section },
+        );
         results.push(this.toListItem(row, '', true));
       }
     }
@@ -136,10 +148,10 @@ export class NotesService {
       await this.repo.touchAccessed(id);
       return { content };
     } catch (err: unknown) {
-      this.log.error(`descifrado de la nota ${id} fallo: ${err instanceof Error ? err.message : err}`, {
-        noteId: id,
-        section,
-      });
+      this.log.error(
+        `descifrado de la nota ${id} fallo: ${err instanceof Error ? err.message : err}`,
+        { noteId: id, section },
+      );
       throw err;
     }
   }
@@ -166,21 +178,22 @@ export class NotesService {
           results.push(this.toListItem(row, content));
         }
       } catch (err: unknown) {
-        this.log.warn(`nota ${row.id} no se pudo descifrar en search: ${err instanceof Error ? err.message : err}`, {
-          noteId: row.id,
-          section,
-        });
+        this.log.warn(
+          `nota ${row.id} no se pudo descifrar en search: ${err instanceof Error ? err.message : err}`,
+          { noteId: row.id, section },
+        );
       }
     }
     return results;
   }
 
-  // ============ ITEM OPS ============
+    // ============ ITEM OPS ============
 
   async updateContent(id: string, content: string): Promise<void> {
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException('note not found');
     const section = row.isPrivate === 'true' ? 'notes_private' : 'notes';
+    this.guard.assertWritable(section);
     const key = await this.deriveSectionKey(section);
     const encrypted = this.crypto.encrypt(content, key, Buffer.from(row.id));
     await this.repo.update(id, {
@@ -191,21 +204,31 @@ export class NotesService {
     this.log.log(`contenido de la nota ${id} actualizado`, { noteId: id, section });
   }
 
-  async updateMeta(id: string, meta: { title?: string; groupId?: string | null; pinned?: boolean }): Promise<void> {
+  async updateMeta(
+    id: string,
+    meta: { title?: string; groupId?: string | null; pinned?: boolean },
+  ): Promise<void> {
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException('note not found');
+    this.guard.assertWritable(row.isPrivate === 'true' ? 'notes_private' : 'notes');
     const patch: Record<string, unknown> = {};
     if (meta.title !== undefined) patch.title = meta.title;
     if (meta.groupId !== undefined) patch.groupId = meta.groupId ?? null;
     if (meta.pinned !== undefined) patch.pinned = meta.pinned ? 'true' : 'false';
     await this.repo.update(id, patch);
-    this.log.log(`metadatos de la nota ${id} actualizados`, { noteId: id, fields: Object.keys(patch) });
+    this.log.log(`metadatos de la nota ${id} actualizados`, {
+      noteId: id,
+      fields: Object.keys(patch),
+    });
   }
 
   async setPrivate(id: string, isPrivate: boolean): Promise<void> {
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException('note not found');
+    const from = row.isPrivate === 'true' ? 'notes_private' : 'notes';
     const target = isPrivate ? 'notes_private' : 'notes';
+    this.guard.assertWritable(from);
+    this.guard.assertWritable(target);
     const key = await this.deriveSectionKey(target);
     const { content } = await this.getContent(id);
     const encrypted = this.crypto.encrypt(content, key, Buffer.from(row.id));
@@ -219,6 +242,9 @@ export class NotesService {
   }
 
   async remove(id: string): Promise<void> {
+    const row = await this.repo.findById(id);
+    if (!row) throw new NotFoundException('note not found');
+    this.guard.assertWritable(row.isPrivate === 'true' ? 'notes_private' : 'notes');
     await this.repo.softDelete(id);
     this.log.log(`nota ${id} eliminada (soft)`, { noteId: id });
   }
@@ -237,13 +263,87 @@ export class NotesService {
     return this.groups.remove('notes', id);
   }
 
+  // ============ ROTATION (spec 013) ============
+
+  /** One unit per row of the section: the whole section shares a key, so it stages in one pass. */
+  private async countUnits(section: 'notes' | 'notes_private'): Promise<number> {
+    return (await this.repo.findForRotation(section === 'notes_private')).length;
+  }
+
+  /**
+   * Decrypts each row with `from`, encrypts it with `to` and stages the result together with
+   * the refreshed copy of the section key. Live rows are untouched: the section keeps
+   * answering to the old passphrase until the apply commits. Rows already staged are skipped,
+   * which is what makes a resume reuse the work instead of redoing it.
+   */
+  private async stageSection(
+    jobId: string,
+    section: 'notes' | 'notes_private',
+    from: string,
+    to: string,
+    report: StageReporter,
+  ): Promise<number> {
+    const rows = await this.repo.findForRotation(section === 'notes_private');
+    if (rows.length === 0) return 0;
+
+    const already = await this.stagedNoteIds(jobId);
+    const oldKey = await this.keys.deriveSectionKey(from, section);
+    const newKey = await this.keys.deriveSectionKey(to, section);
+    const salt = newKey.toString('base64');
+
+    const alreadyStaged = already.size;
+    let staged = alreadyStaged;
+    for (const row of rows) {
+      if (already.has(row.id)) continue;
+      const content = this.crypto.decrypt(this.toEncrypted(row), oldKey, Buffer.from(row.id));
+      const encrypted = this.crypto.encrypt(content, newKey, Buffer.from(row.id));
+      await this.rotation.stageRow(jobId, {
+        targetTable: NOTES_TABLE,
+        rowId: row.id,
+        payload: {
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          salt,
+        },
+      });
+      staged += 1;
+    }
+
+    if (staged > alreadyStaged) await report(staged);
+    return staged - alreadyStaged;
+  }
+
+  /** Write-back inside the apply transaction: ciphertext, iv, tag and the new key copy. */
+  private async applySection(tx: DrizzleTx, staged: RotationStagingRow[]): Promise<number> {
+    const rows: NoteRewrite[] = staged
+      .filter((row) => row.targetTable === NOTES_TABLE)
+      .map((row) => ({ id: row.rowId, ...(row.payload as NotePayload) }));
+    return this.repo.applyRotation(tx, rows);
+  }
+
+  /** Rows already staged for this job, so a resume never re-derives what is already durable. */
+  private async stagedNoteIds(jobId: string): Promise<Set<string>> {
+    const staged = await this.rotation.listStaged(jobId);
+    return new Set(staged.filter((row) => row.targetTable === NOTES_TABLE).map((row) => row.rowId));
+  }
+
   // ============ HELPERS ============
 
-  private toEncrypted(row: NoteRow): { ciphertext: string; iv: string; authTag: string; salt: string } {
+  private toEncrypted(row: NoteRow): {
+    ciphertext: string;
+    iv: string;
+    authTag: string;
+    salt: string;
+  } {
     return { ciphertext: row.ciphertext, iv: row.iv, authTag: row.authTag, salt: row.salt };
   }
 
-  private toListItem(row: NoteRow, content: string, snippetOrHidden?: string | boolean): NoteListItem {
+  private toListItem(
+    row: NoteRow,
+    content: string,
+    snippetOrHidden?: string | boolean,
+  ): NoteListItem {
     const hidden = snippetOrHidden === true;
     const snippet = hidden
       ? ''

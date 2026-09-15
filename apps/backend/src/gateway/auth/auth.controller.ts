@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Param, Body, Res, HttpException, HttpStatus } from '@nestjs/common';
+﻿import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Res,
+  HttpCode,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from '../../bll/auth/auth.service';
 import {
@@ -74,7 +84,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<RotationStarted | RotationApplied> {
     const result = await this.rotation.start(section, body?.current ?? '', body?.next ?? '');
-    if ('jobId' in result) res.status(HttpStatus.ACCEPTED);
+    res.status('jobId' in result ? HttpStatus.ACCEPTED : HttpStatus.OK);
     return result;
   }
 
@@ -84,6 +94,7 @@ export class AuthController {
   }
 
   @Post('change-passphrase/:section/cancel')
+  @HttpCode(HttpStatus.OK)
   cancelRotation(@Param('section') section: string): Promise<{ ok: true; discarded: number }> {
     return this.rotation.cancel(section);
   }

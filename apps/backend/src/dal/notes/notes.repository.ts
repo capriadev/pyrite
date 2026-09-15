@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq } from 'drizzle-orm';
-import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
+import { DRIZZLE_DB, type DrizzleDb, type DrizzleTx } from '../drizzle.provider';
 import { notes } from '../../../drizzle/schema';
 
 export interface NoteRow {
@@ -17,6 +17,15 @@ export interface NoteRow {
   createdAt: Date;
   updatedAt: Date;
   lastAccessedAt: Date;
+}
+
+/** Columns a rotation apply writes back: the ciphertext and the copy of the new section key. */
+export interface NoteRewrite {
+  id: string;
+  ciphertext: string;
+  iv: string;
+  authTag: string;
+  salt: string;
 }
 
 @Injectable()
@@ -57,6 +66,34 @@ export class NotesRepository {
 
   async touchAccessed(id: string): Promise<void> {
     await this.db.update(notes).set({ lastAccessedAt: new Date() }).where(eq(notes.id, id));
+  }
+
+  /** Every row of a section, soft-deleted included: a stale ciphertext is a latent bug. */
+  async findForRotation(isPrivate: boolean): Promise<NoteRow[]> {
+    const rows = await this.db
+      .select()
+      .from(notes)
+      .where(eq(notes.isPrivate, isPrivate ? 'true' : 'false'));
+    return rows.map((r) => this.mapRow(r));
+  }
+
+  /**
+   * Write-back of a rotation apply: only the ciphertext columns, inside the transaction the
+   * caller commits with the new canary. `updated_at` is left alone on purpose - rotating a
+   * key is not an edit of the note.
+   */
+  async applyRotation(tx: DrizzleTx, rows: NoteRewrite[]): Promise<number> {
+    let applied = 0;
+    for (const row of rows) {
+      const { id, ...data } = row;
+      const updated = await tx
+        .update(notes)
+        .set(data as never)
+        .where(eq(notes.id, id))
+        .returning({ id: notes.id });
+      applied += updated.length;
+    }
+    return applied;
   }
 
   private mapRow(r: typeof notes.$inferSelect): NoteRow {

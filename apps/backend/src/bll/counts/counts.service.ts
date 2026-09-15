@@ -1,16 +1,25 @@
-import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+﻿import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'crypto';
-import { CountsRepository, type CountsAccountPatch, type CountsAccountRow, type CountsListFilters, type CredentialType } from '../../dal/counts/counts.repository';
+import { CountsRepository, type CountsAccountPatch, type CountsAccountRewrite, type CountsAccountRow, type CountsHistoryRewrite, type CountsListFilters, type CredentialType } from '../../dal/counts/counts.repository';
+import { RotationRepository, type RotationStagingRow } from '../../dal/rotation/rotation.repository';
+import type { DrizzleTx } from '../../dal/drizzle.provider';
 import { countsPasswordHistory } from '../../../drizzle/schema';
-import { CryptoService } from '../../services/crypto/crypto.service';
+import { CryptoService, type EncryptedData } from '../../services/crypto/crypto.service';
 import { AuthService } from '../auth/auth.service';
 import { GroupsService } from '../groups/groups.service';
 import { SettingsService } from '../settings/settings.service';
+import { SectionKeysService } from '../../services/crypto/section-keys';
+import { SectionWriteGuard } from '../rotation/section-write-guard';
+import type { SectionRotator, StageReporter } from '../rotation/section-rotator';
 import { SECRET_FIELDS, encryptedPatch, fieldCipher, isSecretField, secretAad, type SecretField } from './counts-fields';
 import { scorePassword } from './password-strength';
 import { isUuid, type CountsAccountInput } from './counts-input';
 
 const SECTION = 'counts';
+
+/** Physical tables a rotation of this section writes back: the account and its history. */
+const COUNT_ACCOUNTS_TABLE = 'counts_accounts';
+const COUNT_HISTORY_TABLE = 'counts_password_history';
 const WEAK_THRESHOLD_KEY = 'counts.weak_threshold';
 /** Fallback used until the threshold is set from the settings UI. */
 const DEFAULT_WEAK_THRESHOLD = 50;
@@ -51,12 +60,28 @@ export interface CountsDuplicateGroup {
 export class CountsService {
   private readonly log = new Logger(CountsService.name);
 
+  /**
+   * The section as a rotator (spec 013). Its unit is the account - the five secret column sets
+   * share one key - plus one unit per history row, which carries a salt of its own.
+   */
+  readonly rotators: SectionRotator[] = [
+    {
+      section: SECTION,
+      countUnits: () => this.countUnits(),
+      stage: (jobId, from, to, report) => this.stageSection(jobId, from, to, report),
+      apply: (tx, staged) => this.applySection(tx, staged),
+    },
+  ];
+
   constructor(
     private readonly repo: CountsRepository,
     private readonly crypto: CryptoService,
     private readonly auth: AuthService,
     private readonly groups: GroupsService,
     private readonly settings: SettingsService,
+    private readonly keys: SectionKeysService,
+    private readonly rotation: RotationRepository,
+    private readonly guard: SectionWriteGuard,
   ) {}
 
   // ============ ACCESS ============
@@ -70,7 +95,7 @@ export class CountsService {
 
   /** One salt per account: the heavy KDF runs once and serves every secret column of the row. */
   private deriveAccountKey(passphrase: string, salt: string): Promise<Buffer> {
-    return this.crypto.deriveKey(passphrase, SECTION, Buffer.from(salt, 'base64'));
+    return this.keys.recordKey(passphrase, SECTION, salt);
   }
 
   private async requireAccount(id: string): Promise<CountsAccountRow> {
@@ -108,6 +133,7 @@ export class CountsService {
   // ============ CREATE ============
 
   async create(input: CountsAccountInput): Promise<CountsAccountView> {
+    this.guard.assertWritable(SECTION);
     const passphrase = this.requireUnlocked();
     const name = (input.name ?? '').trim();
     if (!name) throw new BadRequestException('name is required');
@@ -151,6 +177,7 @@ export class CountsService {
   // ============ UPDATE ============
 
   async update(id: string, input: CountsAccountInput): Promise<CountsAccountView> {
+    this.guard.assertWritable(SECTION);
     const passphrase = this.requireUnlocked();
     const row = await this.requireAccount(id);
     const patch: CountsAccountPatch = {};
@@ -337,6 +364,7 @@ export class CountsService {
   // ============ ITEM OPS ============
 
   async remove(id: string): Promise<void> {
+    this.guard.assertWritable(SECTION);
     this.requireUnlocked();
     await this.requireAccount(id);
     await this.repo.softDelete(id);
@@ -344,6 +372,7 @@ export class CountsService {
   }
 
   async setGroups(id: string, groupIds: string[]): Promise<CountsAccountView> {
+    this.guard.assertWritable(SECTION);
     this.requireUnlocked();
     await this.requireAccount(id);
     await this.applyGroups(id, groupIds);
@@ -367,6 +396,132 @@ export class CountsService {
   // ============ HELPERS ============
 
   /** The threshold is app config (settings table, editable from the UI), not .env. */
+  // ============ ROTATION (spec 013) ============
+
+  /**
+   * Work units: the accounts that carry at least one secret column, plus every history row.
+   * The account is one unit because its five column sets share a single key; a history row is
+   * another one because it carries a salt of its own.
+   */
+  private async countUnits(): Promise<number> {
+    const accounts = await this.repo.findForRotation();
+    const history = await this.repo.findHistoryForRotation();
+    return accounts.filter((row) => this.carriesSecret(row)).length + history.length;
+  }
+
+  /**
+   * One heavy derivation per account, then one per history row. Salts are not rotated - the key
+   * changes because the passphrase changes - so only the ciphertext columns are staged. Live
+   * rows keep answering to the old passphrase until the apply commits, and units already staged
+   * are skipped so a resume reuses the work.
+   */
+  private async stageSection(
+    jobId: string,
+    from: string,
+    to: string,
+    report: StageReporter,
+  ): Promise<number> {
+    const accounts = await this.repo.findForRotation();
+    const history = await this.repo.findHistoryForRotation();
+    if (accounts.length === 0 && history.length === 0) return 0;
+
+    const already = await this.stagedUnitIds(jobId);
+    let staged = 0;
+
+    for (const row of accounts) {
+      if (already.has(this.unitKey(COUNT_ACCOUNTS_TABLE, row.id))) continue;
+      const secrets = this.secretEntries(row);
+      if (secrets.length === 0) continue;
+
+      const oldKey = await this.deriveAccountKey(from, row.salt);
+      const newKey = await this.deriveAccountKey(to, row.salt);
+      const patch: CountsAccountPatch = {};
+      for (const [field, cipher] of secrets) {
+        const plaintext = this.crypto.decrypt(cipher, oldKey, secretAad(row.id, field));
+        const reencrypted = this.crypto.encrypt(plaintext, newKey, secretAad(row.id, field));
+        Object.assign(patch, encryptedPatch(field, reencrypted));
+      }
+
+      await this.rotation.stageRow(jobId, {
+        targetTable: COUNT_ACCOUNTS_TABLE,
+        rowId: row.id,
+        payload: patch as unknown as Record<string, unknown>,
+      });
+      staged += 1;
+      await report(staged);
+    }
+
+    for (const row of history) {
+      if (already.has(this.unitKey(COUNT_HISTORY_TABLE, row.id))) continue;
+
+      const oldKey = await this.deriveAccountKey(from, row.salt);
+      const newKey = await this.deriveAccountKey(to, row.salt);
+      const cipher = {
+        ciphertext: row.ciphertext,
+        iv: row.iv,
+        authTag: row.authTag,
+        salt: row.salt,
+      };
+      const plaintext = this.crypto.decrypt(cipher, oldKey, secretAad(row.id, 'password'));
+      const reencrypted = this.crypto.encrypt(plaintext, newKey, secretAad(row.id, 'password'));
+
+      await this.rotation.stageRow(jobId, {
+        targetTable: COUNT_HISTORY_TABLE,
+        rowId: row.id,
+        payload: {
+          ciphertext: reencrypted.ciphertext,
+          iv: reencrypted.iv,
+          authTag: reencrypted.authTag,
+        },
+      });
+      staged += 1;
+      await report(staged);
+    }
+
+    return staged;
+  }
+
+  /** Write-back inside the apply transaction: the secret column sets and the history rows. */
+  private async applySection(tx: DrizzleTx, staged: RotationStagingRow[]): Promise<number> {
+    const accounts: CountsAccountRewrite[] = staged
+      .filter((row) => row.targetTable === COUNT_ACCOUNTS_TABLE)
+      .map((row) => ({ id: row.rowId, patch: row.payload as CountsAccountPatch }));
+    const history: CountsHistoryRewrite[] = staged
+      .filter((row) => row.targetTable === COUNT_HISTORY_TABLE)
+      .map((row) => ({
+        id: row.rowId,
+        ciphertext: row.payload.ciphertext as string,
+        iv: row.payload.iv as string,
+        authTag: row.payload.authTag as string,
+      }));
+    return this.repo.applyRotation(tx, accounts, history);
+  }
+
+  /** Units already staged for this job, keyed by table and row, so a resume skips them. */
+  private async stagedUnitIds(jobId: string): Promise<Set<string>> {
+    const staged = await this.rotation.listStaged(jobId);
+    return new Set(staged.map((row) => this.unitKey(row.targetTable, row.rowId)));
+  }
+
+  /** The account table is only one of the sections a job can stage, so units key on both. */
+  private unitKey(table: string, rowId: string): string {
+    return `${table}:${rowId}`;
+  }
+
+  /** Secret columns the account really carries, paired with the field they belong to. */
+  private secretEntries(row: CountsAccountRow): Array<[SecretField, EncryptedData]> {
+    const entries: Array<[SecretField, EncryptedData]> = [];
+    for (const field of SECRET_FIELDS) {
+      const cipher = fieldCipher(row, field);
+      if (cipher) entries.push([field, cipher]);
+    }
+    return entries;
+  }
+
+  private carriesSecret(row: CountsAccountRow): boolean {
+    return SECRET_FIELDS.some((field) => fieldCipher(row, field) !== null);
+  }
+
   private weakThreshold(): number {
     const stored = this.settings.get(WEAK_THRESHOLD_KEY);
     const value = typeof stored === 'number' ? stored : Number(stored);

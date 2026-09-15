@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import { DRIZZLE_DB, type DrizzleDb, type DrizzleTx, withTransaction } from '../drizzle.provider';
 import { rotationJobs, rotationStaging } from '../../../drizzle/schema';
 
@@ -75,6 +75,28 @@ export class RotationRepository {
       .where(eq(rotationJobs.status, 'staging'))
       .returning({ id: rotationJobs.id });
     return updated.length;
+  }
+
+  /** Last job of a section, open or closed: what the status endpoint reports. */
+  async findLatestJob(section: string): Promise<RotationJobRow | undefined> {
+    const rows = await this.db
+      .select()
+      .from(rotationJobs)
+      .where(eq(rotationJobs.section, section))
+      .orderBy(desc(rotationJobs.createdAt))
+      .limit(1);
+    return rows[0];
+  }
+
+  /** A new run supersedes the closed rows of its section, so the table keeps one at most. */
+  async deleteClosedJobs(section: string): Promise<number> {
+    const removed = await this.db
+      .delete(rotationJobs)
+      .where(
+        and(eq(rotationJobs.section, section), notInArray(rotationJobs.status, OPEN_ROTATION_STATUSES)),
+      )
+      .returning({ id: rotationJobs.id });
+    return removed.length;
   }
 
   async deleteJob(jobId: string): Promise<void> {

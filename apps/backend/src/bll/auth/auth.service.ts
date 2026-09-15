@@ -105,6 +105,17 @@ constructor(
     return this.passphrases.get(section);
   }
 
+  /**
+   * The rotation finished: the section keeps working under the new passphrase instead of
+   * being kicked out of the session that just rotated it (its key cache was evicted too).
+   */
+  swapSectionPassphrase(section: SectionName, passphrase: string): void {
+    if (!this.passphrases.has(section)) return;
+    this.passphrases.set(section, passphrase);
+    this.unlockedAt.set(section, Date.now());
+    this.log.log(`passphrase de la seccion ${section} renovada en memoria`, { section });
+  }
+
   async setSectionPassphrase(section: SectionName, passphrase: string): Promise<void> {
     const canary = await this.crypto.createCanary(passphrase, section);
     await this.settings.upsert(`${section}.canary`, canary as unknown as Record<string, unknown>);

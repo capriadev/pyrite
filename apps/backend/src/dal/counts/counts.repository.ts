@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, ilike, inArray, isNotNull, lte, or } from 'drizzle-orm';
-import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
+import { DRIZZLE_DB, type DrizzleDb, type DrizzleTx } from '../drizzle.provider';
 import {
   countsAccountGroups,
   countsAccounts,
@@ -28,6 +28,19 @@ export interface CountsTagRow {
   accountId: string;
   groupId: string;
   name: string;
+}
+
+/** Write-back units of a rotation apply: the account patch and the re-encrypted history row. */
+export interface CountsAccountRewrite {
+  id: string;
+  patch: CountsAccountPatch;
+}
+
+export interface CountsHistoryRewrite {
+  id: string;
+  ciphertext: string;
+  iv: string;
+  authTag: string;
 }
 
 /**
@@ -166,6 +179,49 @@ export class CountsRepository {
       .from(countsAccountGroups)
       .innerJoin(groups, eq(groups.id, countsAccountGroups.groupId))
       .where(and(inArray(countsAccountGroups.accountId, accountIds), eq(groups.status, 'active')));
+  }
+
+  // ============ ROTATION (spec 013) ============
+
+  /** Every account, soft-deleted included: a stale ciphertext is a latent bug. */
+  async findForRotation(): Promise<CountsAccountRow[]> {
+    return this.db.select().from(countsAccounts);
+  }
+
+  /** Every history row: each one carries its own salt, so it is a write-back unit of its own. */
+  async findHistoryForRotation(): Promise<CountsHistoryRow[]> {
+    return this.db.select().from(countsPasswordHistory);
+  }
+
+  /**
+   * Write-back of a rotation apply inside the transaction the caller commits with the new
+   * canary. Salts are part of the key material and are not rotated, so only ciphertext columns
+   * travel; `updated_at` is left alone because rotating a key is not an edit of the account.
+   */
+  async applyRotation(
+    tx: DrizzleTx,
+    accounts: CountsAccountRewrite[],
+    history: CountsHistoryRewrite[],
+  ): Promise<number> {
+    let applied = 0;
+    for (const account of accounts) {
+      const updated = await tx
+        .update(countsAccounts)
+        .set(account.patch as never)
+        .where(eq(countsAccounts.id, account.id))
+        .returning({ id: countsAccounts.id });
+      applied += updated.length;
+    }
+    for (const row of history) {
+      const { id, ...data } = row;
+      const updated = await tx
+        .update(countsPasswordHistory)
+        .set(data as never)
+        .where(eq(countsPasswordHistory.id, id))
+        .returning({ id: countsPasswordHistory.id });
+      applied += updated.length;
+    }
+    return applied;
   }
 
   private async accountIdsForGroup(groupId: string): Promise<string[]> {

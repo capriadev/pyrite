@@ -94,6 +94,9 @@ Recovery rules (what happens after an interruption):
   resumable or cancellable).
 - Staged rows written under a passphrase the user no longer wants are simply discarded: cancel
   is the rollback, and it cannot lose data because nothing live was ever modified.
+- If the passphrases disappear mid-staging (section locked, 5 minute unlock TTL expired, process
+  restarted), staging pauses instead of failing: the staged rows are durable, so the job stays
+  open and is surfaced as needing resume until it is resumed with both passphrases or cancelled.
 
 ## Decisions (recorded so they are not re-litigated)
 - **Background with durable staging, applied at the end in one atomic swap.** This replaces
@@ -110,7 +113,9 @@ Recovery rules (what happens after an interruption):
 - **The job is durable, the passphrase is not.** Progress lives in `rotation_staging`. Resuming
   asks for both passphrases again (single-user, manual, rare operation) and verifies `next`
   against the pending canary, so no passphrase or key is ever persisted and zero-knowledge is
-  untouched.
+  untouched. While a job is actively staging it holds both in memory (never on disk), which is
+  why the unlock TTL does not govern it: losing them pauses the job, only a resume re-supplies
+  them, and a lock does not have to wait for the staging to end.
 - **The pending canary is stored with the job**, encrypted under `next`: the same
   `__PYRITE_CANARY__` mechanism used by unlock, reused as the resume verifier. The live canary
   changes only in the apply transaction.
@@ -208,6 +213,8 @@ only the body shape and delegates everything to the rotation service.
 - [ ] During the whole staging phase the live data keeps answering to the old passphrase; it
       stops only once the apply transaction commits.
 - [ ] Status reports progress while staging, and `interrupted` after a restart with an open job.
+- [ ] Locking the section (or letting the unlock TTL expire) pauses the job instead of failing it,
+      and resuming with both passphrases continues and finishes it.
 - [ ] Killing the process mid-staging and resuming with both passphrases completes the
       rotation; cancelling instead leaves the old passphrase working and no staged rows behind.
 - [ ] A failure during staging rolls back: the old passphrase works and no live row changed.

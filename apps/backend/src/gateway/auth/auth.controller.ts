@@ -1,10 +1,20 @@
-import { Controller, Get, Post, Param, Body, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Res, HttpException, HttpStatus } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthService } from '../../bll/auth/auth.service';
+import {
+  RotationService,
+  type RotationApplied,
+  type RotationProgress,
+  type RotationStarted,
+} from '../../bll/rotation/rotation.service';
 import { type SectionName } from '../../services/crypto/crypto-config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly rotation: RotationService,
+  ) {}
 
   @Get('status')
   async status(): Promise<Record<string, boolean>> {
@@ -48,6 +58,34 @@ export class AuthController {
     }
     this.auth.lockSection(section as SectionName);
     return { ok: true };
+  }
+
+  // ============ ROTATION (spec 013) ============
+
+  /**
+   * Starts the rotation of a section, or resumes the job already open for it. 202 when the
+   * work moved to the background, 200 when the section had nothing to stage and the swap
+   * happened inline; the guards of the request answer 400, 401 and 409.
+   */
+  @Post('change-passphrase/:section')
+  async changePassphrase(
+    @Param('section') section: string,
+    @Body() body: { current?: string; next?: string },
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RotationStarted | RotationApplied> {
+    const result = await this.rotation.start(section, body?.current ?? '', body?.next ?? '');
+    if ('jobId' in result) res.status(HttpStatus.ACCEPTED);
+    return result;
+  }
+
+  @Get('change-passphrase/:section/status')
+  rotationStatus(@Param('section') section: string): Promise<RotationProgress> {
+    return this.rotation.status(section);
+  }
+
+  @Post('change-passphrase/:section/cancel')
+  cancelRotation(@Param('section') section: string): Promise<{ ok: true; discarded: number }> {
+    return this.rotation.cancel(section);
   }
 
   @Post('set-passphrase/:section')

@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
@@ -50,7 +51,7 @@ export interface RotationProgress {
  * old passphrase, and the swap commits once, in one transaction, with the staged rows.
  */
 @Injectable()
-export class RotationService {
+export class RotationService implements OnModuleInit {
   private readonly rotators = new Map<SectionName, SectionRotator>();
   private readonly log = new Logger(RotationService.name);
 
@@ -67,6 +68,18 @@ export class RotationService {
   ) {
     for (const rotator of [...notes.rotators, ...apis.rotators, ...counts.rotators]) {
       this.rotators.set(rotator.section, rotator);
+    }
+  }
+
+  /**
+   * Startup recovery: a job the process left mid-flight is surfaced as interrupted instead of
+   * pretending to run, so the status endpoint says a resume is what it needs. The staged units
+   * are durable, so waiting loses nothing.
+   */
+  async onModuleInit(): Promise<void> {
+    const marked = await this.rotation.markStagingAsInterrupted();
+    if (marked > 0) {
+      this.log.warn(`rotaciones marcadas como interrumpidas: ${marked}`, { jobs: marked });
     }
   }
 

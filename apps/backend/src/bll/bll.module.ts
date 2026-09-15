@@ -7,6 +7,8 @@ import { ApiKeysService } from './apis/api-keys.service';
 import { GroupsService } from './groups/groups.service';
 import { NotesService } from './notes/notes.service';
 import { CountsService } from './counts/counts.service';
+import { RotationService } from './rotation/rotation.service';
+import { SectionWriteGuard } from './rotation/section-write-guard';
 
 /**
  * Domain logic layer. Feature BLL modules are registered here as they are
@@ -15,7 +17,7 @@ import { CountsService } from './counts/counts.service';
 @Global()
 @Module({
   imports: [DalModule],
-  providers: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService],
-  exports: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService],
+  providers: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, RotationService, SectionWriteGuard],
+  exports: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, RotationService, SectionWriteGuard],
 })
 export class BllModule {}

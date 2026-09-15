@@ -231,6 +231,8 @@ only the body shape and delegates everything to the rotation service.
       fully new, and the live canary matches the data.
 - [ ] Wrong `current` returns 401 with no change; unconfigured section 409; `next === current`
       400; cancel with no open job 409.
+- [ ] While a job is open, writing to the section (create, edit, delete) answers 409 and reading
+      keeps working; once the job finishes or is cancelled, writes work again under `next`.
 - [ ] `vault` applies inline and reports nothing to stage.
 - [ ] After a rotation nothing can encrypt with the previous key (passphrase-keyed cache) and
       the `notes.salt` copies hold the new key.
@@ -247,6 +249,8 @@ only the body shape and delegates everything to the rotation service.
 - Interruption: kill the process mid-staging (dev only), restart, confirm the job shows
   `interrupted`, resume with both passphrases and finish; repeat and cancel instead, confirming
   nothing staged remains and the old passphrase still works.
+- Read-only window: with a job open, a create, edit or delete against the section must answer
+  409 while the reads keep working, and writing works again after the apply commits.
 - Failure injection during staging (temporary throw in dev, removed afterwards): rollback
   leaves no live row changed.
 - Blackout during apply: stop the container between staging and apply and verify the section is

@@ -24,6 +24,8 @@ function Resolve-AutoPath($value, $projectName) {
 
 $Config.ExternalPath  = Resolve-AutoPath $Config.ExternalPath  $Config.ProjectName
 $Config.DbContainer   = Resolve-AutoPath $Config.DbContainer   $Config.ProjectName
+$Config.DbUser        = Resolve-AutoPath $Config.DbUser        $Config.ProjectName
+$Config.DbName        = Resolve-AutoPath $Config.DbName        $Config.ProjectName
 $Config.DbVolume      = Resolve-AutoPath $Config.DbVolume      $Config.ProjectName
 foreach ($remote in $Config.CloudRemotes) {
     $remote.Path = Resolve-AutoPath $remote.Path $Config.ProjectName

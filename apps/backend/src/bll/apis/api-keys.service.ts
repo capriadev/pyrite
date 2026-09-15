@@ -113,6 +113,8 @@ export class ApiKeysService {
         status = 'invalid';
       }
     }
+    // Not behind the rotation window: it records the validation result and never touches a
+    // ciphertext, so it cannot leave a row encrypted with the previous key.
     await this.repo.updateValidator(id, status, new Date());
     return status;
   }

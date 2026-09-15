@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
 import { groups } from '../../../drizzle/schema';
 
-export type GroupDomain = 'apis' | 'notes';
+export type GroupDomain = 'apis' | 'notes' | 'counts';
 
 export interface GroupRow {
   id: string;

@@ -1,4 +1,15 @@
-import { jsonb, numeric, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  foreignKey,
+  jsonb,
+  numeric,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 /**
  * Pyrite database schema. Source of truth for drizzle-kit.
@@ -127,6 +138,86 @@ export const notes = pgTable('notes', {
   lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Counts - credential vault (spec 012).
+ * Metadata stays plaintext (searchable and renderable without unlock);
+ * only sensitive values are encrypted, each with its own salt, AAD = row id.
+ */
+
+export const credentialTypeEnum = pgEnum('credential_type', ['password', 'oauth', 'sso', 'api_key', 'other']);
+
+export const countsAccounts = pgTable('counts_accounts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  kind: text('kind'),
+  url: text('url'),
+  email: text('email'),
+  username: text('username'),
+  number: text('number'),
+  notes: text('notes'),
+  credentialType: credentialTypeEnum('credential_type').notNull().default('password'),
+  oauthEnabled: notesPrivateEnum('oauth_enabled').notNull().default('false'),
+  oauthSrcAccountId: uuid('oauth_src_account_id'),
+  status: movementStatusEnum('status').notNull().default('active'),
+  strengthScore: numeric('strength_score', { precision: 4, scale: 1 }),
+  lastPasswordChangedAt: timestamp('last_password_changed_at', { withTimezone: true }),
+  /**
+   * One salt per account: the heavy KDF runs once per account and the resulting
+   * key encrypts every secret column of that row. AAD is `${id}:${field}` so a
+   * ciphertext cannot be swapped between columns or rows.
+   */
+  salt: text('salt').notNull(),
+  passwordCiphertext: text('password_ciphertext'),
+  passwordIv: text('password_iv'),
+  passwordAuthTag: text('password_auth_tag'),
+  secretValueCiphertext: text('secret_value_ciphertext'),
+  secretValueIv: text('secret_value_iv'),
+  secretValueAuthTag: text('secret_value_auth_tag'),
+  phraseCiphertext: text('phrase_ciphertext'),
+  phraseIv: text('phrase_iv'),
+  phraseAuthTag: text('phrase_auth_tag'),
+  twofaCiphertext: text('twofa_ciphertext'),
+  twofaIv: text('twofa_iv'),
+  twofaAuthTag: text('twofa_auth_tag'),
+  questionsCiphertext: text('questions_ciphertext'),
+  questionsIv: text('questions_iv'),
+  questionsAuthTag: text('questions_auth_tag'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({
+    name: 'counts_accounts_oauth_src_fkey',
+    columns: [t.oauthSrcAccountId],
+    foreignColumns: [t.id],
+  }).onDelete('set null'),
+]);
+
+export const countsPasswordHistory = pgTable('counts_password_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  accountId: uuid('account_id')
+    .notNull()
+    .references(() => countsAccounts.id, { onDelete: 'cascade' }),
+  ciphertext: text('ciphertext').notNull(),
+  iv: text('iv').notNull(),
+  authTag: text('auth_tag').notNull(),
+  salt: text('salt').notNull(),
+  changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const countsAccountGroups = pgTable('counts_account_groups', {
+  accountId: uuid('account_id')
+    .notNull()
+    .references(() => countsAccounts.id, { onDelete: 'cascade' }),
+  groupId: uuid('group_id')
+    .notNull()
+    .references(() => groups.id, { onDelete: 'cascade' }),
+}, (t) => [
+  primaryKey({
+    name: 'counts_account_groups_pk',
+    columns: [t.accountId, t.groupId],
+  }),
+]);
+
 // ============================================================
 // Groups (unified per-domain)
 // ============================================================
@@ -137,6 +228,6 @@ export const groups = pgTable('groups', {
   name: text('name').notNull(),
   status: movementStatusEnum('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({
-  domainName: { name: 'groups_domain_name_key', columns: [t.domain, t.name], unique: true },
-}));
+}, (t) => [
+  unique('groups_domain_name_key').on(t.domain, t.name),
+]);

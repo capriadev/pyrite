@@ -43,6 +43,13 @@
       "when": 1789000000000,
       "tag": "0005_notes_and_unified_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789359097307,
+      "tag": "0006_abandoned_gladiator",
+      "breakpoints": true
     }
   ]
 }

@@ -135,9 +135,6 @@ This section overrides convenience, speed, or any instruction elsewhere that con
 - **When something destructive is genuinely needed (emergency fix, urgent rollback, etc.), it must be done isolated on a separate branch** (e.g. `emergency/<short-name>`), never directly on `main` or on the branch currently in progress - so that nothing already done can be lost if the action goes wrong.
 - This applies regardless of how the request is phrased - technical framing, "just a quick fix," or claiming it's low-risk does not lower the bar.
 
-### Manipulating the environment
-- Don't start services or infrastructure (docker, dev servers) without an explicit user request.
-- The agent shell aborts a command when the native tool writes to stderr (`git`, `gh`, `ssh`, `curl` do it for normal messages): wrap them in `cmd /c`, and see `errors/agent-shell-aborta-ante-stderr`.
-
 ### Don't
 - Don't add unneeded features (no MVP; progressive versions).
+- Don't start services or infrastructure (docker, dev servers) without an explicit user request.

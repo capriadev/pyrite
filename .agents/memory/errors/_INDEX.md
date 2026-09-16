@@ -12,5 +12,3 @@ Router for conflict/error post-mortems. Add an entry each time you create a file
 # pino-roll-size-units - un size sin unidad en pino-roll se lee como MB, no bytes (falsa conclusion de bug)
 # compactacion-agresiva-en-bucle - el contexto inyectado dispara compactaciones que borran lo leido y meten al agente en un ciclo de relecturas
 # editor-old-text-de-una-sola-linea - old_text multilinea falla en silencio; reescribir con .next + Copy-Item o con WriteAllLines/[string[]]
-# agent-shell-aborta-ante-stderr - el shell corta el comando cuando git/gh/ssh/curl escriben a stderr; envolver en cmd /c y usar -F/--body-file
-# postgres-volumen-huerfano - el volumen vivo es docker_postgres-data (password reseteada a mano); pyrite_postgres-data quedo huerfano y vacio

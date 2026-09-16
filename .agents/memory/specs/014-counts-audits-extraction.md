@@ -1,6 +1,6 @@
 # 014 Counts audits extraction
 
-Status: active (branch refactor/counts-audits).
+Status: completed (branch refactor/counts-audits, verified with tsc + build).
 
 ## Objective
 
@@ -80,3 +80,20 @@ behavior. It runs before Calendar/Tasks start living next to this domain.
   part of the task): with the `counts` section locked both audit routes answer 403;
   unlocked, weak returns the configured threshold and duplicates returns the same groups
   as before the refactor (same accounts, same order).
+
+## Result (what was built)
+
+- `counts-view.ts` holds `CountsAccountView`, `toView` and `toViews(repo, rows)`;
+  `toViews` takes the repository as an argument so the module stays DI-free.
+- `counts-audits.service.ts` owns `weakAudit`, `duplicatesAudit`,
+  `CountsDuplicateGroup`, the `counts.weak_threshold` key, the default (50), the
+  threshold helper, its own `requireUnlocked` and its logger. Per-record derivation goes
+  through `SectionKeysService.recordKey`, the same call the CRUD path uses.
+- `counts.service.ts`: 578 to 453 lines; the AUDITS section, the threshold helper, the
+  constants, `SettingsService` and both view mappers are gone, and everything else
+  (CRUD, reveal, history, groups, 013 rotator) is untouched.
+- `counts.controller.ts` injects `CountsAuditsService`; routes and response shapes
+  unchanged. `bll.module.ts` registers and exports the new provider.
+- No deviation from the approach; no behavior change beyond the file layout.
+- Verified: `npx tsc --noEmit` and `npm run build` clean (`noUnusedLocals` is on, so no
+  leftover import). No live smoke: starting the test instance was out of scope.

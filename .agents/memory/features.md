@@ -23,4 +23,3 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #13 Logging system - pino + pino-roll, correlacion por reqId, redaccion de secretos, rotacion y retencion [spec: 011-logging-system.md] [status: completed]
 #14 Counts backend - boveda de credenciales zero-knowledge (cifrado por registro, historial de passwords, fortaleza, duplicados, OAuth) [spec: 012-counts-backend.md] [status: active]
 #15 Rotacion de passphrase por seccion - cambiar la passphrase de notes/notes_private/apis/vault/counts en segundo plano (staging durable, resume tras corte, cancel con rollback) y apply atomico del canary al final [spec: 013-section-passphrase-rotation.md] [status: active]
-#16 Counts audits extraction - separar weakAudit/duplicatesAudit de counts.service en CountsAuditsService + modulo de vista compartido (refactor sin cambio de comportamiento) [spec: 014-counts-audits-extraction.md] [status: active]

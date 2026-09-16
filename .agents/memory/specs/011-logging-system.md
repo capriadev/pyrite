@@ -1,7 +1,5 @@
 # 011 Logging system
 
-Status: completed (branch feat/logging, pending PR/merge).
-
 ## Objective
 Give Pyrite a real logging system: structured JSON Lines records written to disk with
 correlation ids, automatic redaction, level control, size+date rotation and retention, so
@@ -55,8 +53,7 @@ with a local `DailyRotatingStream`. That conclusion was wrong and was caused by 
 badly configured test: the size value was passed without a unit, and pino-roll
 interprets a bare number as **MB** (not bytes), so a small probe payload could
 never reach the ceiling. The documented `filename.date.count.extension` naming is
-also exactly what was required. `DailyRotatingStream` was removed. See
-`errors/pino-roll-size-units.md`.
+also exactly what was required. `DailyRotatingStream` was removed.
 
 `pino-http` was installed as the planned request logger but dropped: the custom
 `HttpLoggingInterceptor` already covers method, route, status, duration and
@@ -137,4 +134,4 @@ Defects found and fixed during verification:
 - The error mirror emitted duplicate `msg` keys in one JSON object.
 - pino-roll was first discarded on a falsely configured size test and replaced by
   a local stream; after the unit fix it handles rotation and naming, so the local
-  stream was removed. See `errors/pino-roll-size-units.md`.
+  stream was removed.

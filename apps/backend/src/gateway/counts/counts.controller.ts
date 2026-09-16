@@ -1,9 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
-import {
-  CountsService,
-  type CountsAccountView,
-  type CountsDuplicateGroup,
-} from '../../bll/counts/counts.service';
+import { CountsService } from '../../bll/counts/counts.service';
+import { CountsAuditsService, type CountsDuplicateGroup } from '../../bll/counts/counts-audits.service';
+import { type CountsAccountView } from '../../bll/counts/counts-view';
 import { isCredentialType, isUuid, type CountsAccountInput } from '../../bll/counts/counts-input';
 import { type SecretField } from '../../bll/counts/counts-fields';
 import type { CountsListFilters } from '../../dal/counts/counts.repository';
@@ -15,18 +13,21 @@ import type { GroupRow } from '../../dal/groups/groups.repository';
  */
 @Controller('counts')
 export class CountsController {
-  constructor(private readonly counts: CountsService) {}
+  constructor(
+    private readonly counts: CountsService,
+    private readonly audits: CountsAuditsService,
+  ) {}
 
   // ============ AUDITS ============
 
   @Get('audit/weak')
   weakAudit(): Promise<{ threshold: number; accounts: CountsAccountView[] }> {
-    return this.counts.weakAudit();
+    return this.audits.weakAudit();
   }
 
   @Get('audit/duplicates')
   duplicatesAudit(): Promise<CountsDuplicateGroup[]> {
-    return this.counts.duplicatesAudit();
+    return this.audits.duplicatesAudit();
   }
 
   // ============ GROUPS (domain 'counts') ============

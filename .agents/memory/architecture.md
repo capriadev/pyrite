@@ -33,6 +33,13 @@ Single source of truth for how Pyrite is built. Update on every trade-off. Mark 
 - `config/` - typed config loaded at boot (in-DB config lands here later).
 - `types/` - shared TypeScript types/contracts used by more than one layer, so no layer has to import another just for a type.
 
+### Backend build & tooling
+- Drizzle (schema + migrations) lives in `apps/backend/drizzle/` with `apps/backend/drizzle.config.ts`; the root orm scripts run `cd apps/backend && drizzle-kit <cmd>` because the config resolves paths from the cwd.
+- The backend build uses `rootDir "."` and emits `dist/src/main.js`.
+
+### Local environment (Windows)
+- Postgres is published on host port **30010** (`30010:5432` in the `docker/` compose, `DB_PORT=30010` in `.env.example`): host 5432 belongs to other local projects.
+
 ### Sidecars (own code, OS-level control)
 - Rust or Python **required** for Spotify volume control (Windows) - what `spoti-pobre` does today. Smallest possible sidecar.
 - Lives under `sidecars/`. Not vendorized software - code you write and maintain.
@@ -82,7 +89,8 @@ repo root/
 ├── logs/                         runtime logs, one folder per process (gitkept)
 ├── satellite-services/           external service adapters and helpers
 ├── sidecars/                     auxiliary sidecar processes
-├── temp/                         local temp files, generated assets (gitignored)
+├── temp/                         agent scratch, disposable, never committed (gitignored)
+├── _keep/                        user staging area, never committed (gitignored)
 ├── .agents/
 │   ├── memory/                   agent memory (this system)
 │   └── skills/                   project skills
@@ -96,6 +104,7 @@ repo root/
 ---
 
 ## Security (multi-layer, feature core from day 1)
+- Node 24 ships OpenSSL 3.5 (security level 2): RSA/DSA/DH keys under 2048 bits are rejected. Relevant when the security/auth spec picks key sizes.
 - System login: passphrase → server hashes (Argon2 chain), encrypt; nothing accessible even from DB.
 - Storage sections: `apis`, `claves`, `cloud/bóveda` (mode `password` + mode `secure`).
 - Optional activable layer: physical USB key replacing internal security for critical sections (design pending; unresolved: loss/damage).

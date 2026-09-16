@@ -7,6 +7,7 @@ import { ApiKeysService } from './apis/api-keys.service';
 import { GroupsService } from './groups/groups.service';
 import { NotesService } from './notes/notes.service';
 import { CountsService } from './counts/counts.service';
+import { CountsAuditsService } from './counts/counts-audits.service';
 import { RotationService } from './rotation/rotation.service';
 import { SectionWriteGuard } from './rotation/section-write-guard';
 
@@ -17,7 +18,7 @@ import { SectionWriteGuard } from './rotation/section-write-guard';
 @Global()
 @Module({
   imports: [DalModule],
-  providers: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, RotationService, SectionWriteGuard],
-  exports: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, RotationService, SectionWriteGuard],
+  providers: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, CountsAuditsService, RotationService, SectionWriteGuard],
+  exports: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, CountsAuditsService, RotationService, SectionWriteGuard],
 })
 export class BllModule {}

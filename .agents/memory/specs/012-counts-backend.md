@@ -1,7 +1,5 @@
 # 012 Counts backend
 
-Status: active (branch feat/counts).
-
 ## Objective
 Build the Counts backend: a zero-knowledge credential vault with per-record encryption
 (heavy Argon2id profile), password history, strength scoring, duplicate detection and

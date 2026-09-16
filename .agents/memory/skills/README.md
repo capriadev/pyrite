@@ -18,3 +18,4 @@
 
 ## Note
 - The `.agents/skills/` folder is auto-generated on install in other systems; here it holds both the project-owned `pyrite-orm` skill and environment-installed ones.
+- `skills-lock.json` is the install snapshot: the `computedHash` of react-doctor was left stale on purpose after customizing the skill by hand (references/ removed, local-only, telemetry off). Do not regenerate it by reinstalling, that would drop the customization.

@@ -1,7 +1,5 @@
 # 013 Section passphrase rotation
 
-Status: active (branch feat/section-key-rotation).
-
 ## Objective
 Rotate the passphrase of any section (`notes`, `notes_private`, `apis`, `vault`, `counts`)
 in the background: the new ciphertexts are staged while the live data keeps being read with the
@@ -257,3 +255,5 @@ only the body shape and delegates everything to the rotation service.
   fully old or fully new with the canary matching the data.
 - Row counts per domain table before and after, plus a check that a previous ciphertext no
   longer decrypts (proves the re-encryption actually happened).
+
+Result and measurements: `docs/records/013-section-passphrase-rotation.md`.

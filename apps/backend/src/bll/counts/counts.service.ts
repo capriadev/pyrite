@@ -1,17 +1,17 @@
 ﻿import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'crypto';
-import { CountsRepository, type CountsAccountPatch, type CountsAccountRewrite, type CountsAccountRow, type CountsHistoryRewrite, type CountsListFilters, type CredentialType } from '../../dal/counts/counts.repository';
+import { CountsRepository, type CountsAccountPatch, type CountsAccountRewrite, type CountsAccountRow, type CountsHistoryRewrite, type CountsListFilters } from '../../dal/counts/counts.repository';
 import { RotationRepository, type RotationStagingRow } from '../../dal/rotation/rotation.repository';
 import type { DrizzleTx } from '../../dal/drizzle.provider';
 import { countsPasswordHistory } from '../../../drizzle/schema';
 import { CryptoService, type EncryptedData } from '../../services/crypto/crypto.service';
 import { AuthService } from '../auth/auth.service';
 import { GroupsService } from '../groups/groups.service';
-import { SettingsService } from '../settings/settings.service';
 import { SectionKeysService } from '../../services/crypto/section-keys';
 import { SectionWriteGuard } from '../rotation/section-write-guard';
 import type { SectionRotator, StageReporter } from '../rotation/section-rotator';
 import { SECRET_FIELDS, encryptedPatch, fieldCipher, isSecretField, secretAad, type SecretField } from './counts-fields';
+import { toViews, type CountsAccountView } from './counts-view';
 import { scorePassword } from './password-strength';
 import { isUuid, type CountsAccountInput } from './counts-input';
 
@@ -20,41 +20,11 @@ const SECTION = 'counts';
 /** Physical tables a rotation of this section writes back: the account and its history. */
 const COUNT_ACCOUNTS_TABLE = 'counts_accounts';
 const COUNT_HISTORY_TABLE = 'counts_password_history';
-const WEAK_THRESHOLD_KEY = 'counts.weak_threshold';
-/** Fallback used until the threshold is set from the settings UI. */
-const DEFAULT_WEAK_THRESHOLD = 50;
-
-/** Metadata-only projection of an account: no secret column crosses this boundary. */
-export interface CountsAccountView {
-  id: string;
-  name: string;
-  kind: string | null;
-  url: string | null;
-  email: string | null;
-  username: string | null;
-  number: string | null;
-  notes: string | null;
-  credentialType: CredentialType;
-  oauthEnabled: boolean;
-  oauthSrcAccountId: string | null;
-  strengthScore: number | null;
-  lastPasswordChangedAt: Date | null;
-  /** Presence of each encrypted column, derived without decrypting anything. */
-  indicators: Record<SecretField, boolean>;
-  groups: Array<{ id: string; name: string }>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CountsDuplicateGroup {
-  /** Length only: the shared plaintext never leaves the service. */
-  passwordLength: number;
-  accounts: CountsAccountView[];
-}
 
 /**
  * Counts vault (spec 012). Metadata stays readable while locked; secrets are
- * decrypted only on reveal, history and audits, and only while the section is unlocked.
+ * decrypted only on reveal and history, and only while the section is unlocked. The
+ * audits live in `CountsAuditsService` (spec 014) and the view projection in `counts-view`.
  */
 @Injectable()
 export class CountsService {
@@ -78,7 +48,6 @@ export class CountsService {
     private readonly crypto: CryptoService,
     private readonly auth: AuthService,
     private readonly groups: GroupsService,
-    private readonly settings: SettingsService,
     private readonly keys: SectionKeysService,
     private readonly rotation: RotationRepository,
     private readonly guard: SectionWriteGuard,
@@ -123,7 +92,7 @@ export class CountsService {
 
   /** List and search run on plaintext metadata, so they work while the section is locked. */
   async list(filters: CountsListFilters = {}): Promise<CountsAccountView[]> {
-    return this.toViews(await this.repo.findActive(filters));
+    return toViews(this.repo, await this.repo.findActive(filters));
   }
 
   async get(id: string): Promise<CountsAccountView> {
@@ -313,54 +282,6 @@ export class CountsService {
     return entries;
   }
 
-  // ============ AUDITS ============
-
-  /** Reads the persisted score only: the audit never brute-forces the vault. */
-  async weakAudit(): Promise<{ threshold: number; accounts: CountsAccountView[] }> {
-    this.requireUnlocked();
-    const threshold = this.weakThreshold();
-    const accounts = await this.toViews(await this.repo.findWeak(threshold));
-    this.log.log('auditoria de fortaleza ejecutada', { threshold, accounts: accounts.length });
-    return { threshold, accounts };
-  }
-
-  /**
-   * Groups accounts sharing a password. Each stored password is decrypted with its own
-   * salt (OAuth accounts without their own password are not even read), and nothing
-   * derived is persisted: no comparison hashes in the database.
-   */
-  async duplicatesAudit(): Promise<CountsDuplicateGroup[]> {
-    const passphrase = this.requireUnlocked();
-    const rows = await this.repo.findWithStoredPassword();
-    const byPassword = new Map<string, CountsAccountRow[]>();
-
-    for (const row of rows) {
-      const data = fieldCipher(row, 'password');
-      if (!data) continue;
-      try {
-        const key = await this.deriveAccountKey(passphrase, row.salt);
-        const plaintext = this.crypto.decrypt(data, key, secretAad(row.id, 'password'));
-        byPassword.set(plaintext, [...(byPassword.get(plaintext) ?? []), row]);
-      } catch (err: unknown) {
-        this.log.warn(`auditoria de duplicados: cuenta ${row.id} no se pudo descifrar (${this.message(err)})`, {
-          accountId: row.id,
-        });
-      }
-    }
-
-    const repeated = [...byPassword.entries()]
-      .filter(([, accounts]) => accounts.length > 1)
-      .sort((a, b) => b[1].length - a[1].length);
-    const duplicates: CountsDuplicateGroup[] = [];
-
-    for (const [plaintext, accounts] of repeated) {
-      duplicates.push({ passwordLength: plaintext.length, accounts: await this.toViews(accounts) });
-    }
-
-    this.log.log('auditoria de duplicados ejecutada', { scanned: rows.length, groups: duplicates.length });
-    return duplicates;
-  }
-
   // ============ ITEM OPS ============
 
   async remove(id: string): Promise<void> {
@@ -523,53 +444,8 @@ export class CountsService {
     return SECRET_FIELDS.some((field) => fieldCipher(row, field) !== null);
   }
 
-  private weakThreshold(): number {
-    const stored = this.settings.get(WEAK_THRESHOLD_KEY);
-    const value = typeof stored === 'number' ? stored : Number(stored);
-    return Number.isFinite(value) ? value : DEFAULT_WEAK_THRESHOLD;
-  }
-
   private async viewOne(row: CountsAccountRow): Promise<CountsAccountView> {
-    return (await this.toViews([row]))[0];
-  }
-
-  private async toViews(rows: CountsAccountRow[]): Promise<CountsAccountView[]> {
-    const tags = await this.repo.findTags(rows.map((row) => row.id));
-    const byAccount = new Map<string, Array<{ id: string; name: string }>>();
-    for (const tag of tags) {
-      byAccount.set(tag.accountId, [
-        ...(byAccount.get(tag.accountId) ?? []),
-        { id: tag.groupId, name: tag.name },
-      ]);
-    }
-    return rows.map((row) => this.toView(row, byAccount.get(row.id) ?? []));
-  }
-
-  /** Metadata-only mapping: indicators come from ciphertext presence, not decryption. */
-  private toView(row: CountsAccountRow, groups: Array<{ id: string; name: string }>): CountsAccountView {
-    const indicators = {} as Record<SecretField, boolean>;
-    for (const field of SECRET_FIELDS) {
-      indicators[field] = fieldCipher(row, field) !== null;
-    }
-    return {
-      id: row.id,
-      name: row.name,
-      kind: row.kind,
-      url: row.url,
-      email: row.email,
-      username: row.username,
-      number: row.number,
-      notes: row.notes,
-      credentialType: row.credentialType,
-      oauthEnabled: row.oauthEnabled === 'true',
-      oauthSrcAccountId: row.oauthSrcAccountId,
-      strengthScore: row.strengthScore === null ? null : Number(row.strengthScore),
-      lastPasswordChangedAt: row.lastPasswordChangedAt,
-      indicators,
-      groups,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
+    return (await toViews(this.repo, [row]))[0];
   }
 
   private message(err: unknown): string {

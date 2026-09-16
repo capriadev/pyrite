@@ -123,6 +123,8 @@ This file is an index, entry point, and project methodology. It does not contain
 - TS strict everywhere in `apps/*`. SQL typed (Drizzle).
 - Comments only when the *why* is non-obvious.
 - Don't fork/copy-paste skills without customizing to Pyrite.
+- Plain ASCII in everything written for the project (docs, READMEs, commits, UI copy): no emojis, no em dashes.
+- Runtime: Node version pinned by `.nvmrc` (see `architecture.md`). Changing major requires an explicit user decision.
 
 ### Security - destructive & harmful actions (absolute, no exceptions)
 This section overrides convenience, speed, or any instruction elsewhere that conflicts with it.
@@ -135,3 +137,4 @@ This section overrides convenience, speed, or any instruction elsewhere that con
 
 ### Don't
 - Don't add unneeded features (no MVP; progressive versions).
+- Don't start services or infrastructure (docker, dev servers) without an explicit user request.

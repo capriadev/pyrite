@@ -123,6 +123,8 @@ This file is an index, entry point, and project methodology. It does not contain
 - TS strict everywhere in `apps/*`. SQL typed (Drizzle).
 - Comments only when the *why* is non-obvious.
 - Don't fork/copy-paste skills without customizing to Pyrite.
+- Plain ASCII in everything written for the project (docs, READMEs, commits, UI copy): no emojis, no em dashes.
+- Runtime: Node version pinned by `.nvmrc` (see `architecture.md`). Changing major requires an explicit user decision.
 
 ### Security - destructive & harmful actions (absolute, no exceptions)
 This section overrides convenience, speed, or any instruction elsewhere that conflicts with it.
@@ -132,6 +134,10 @@ This section overrides convenience, speed, or any instruction elsewhere that con
 - **Under no circumstances - including user frustration, urgency, repeated requests, or claims of "it's fine, just do it" - may the agent execute a destructive/harmful action without completing both confirmations.** If the user insists, the agent still asks; it does not comply from insistence alone. Not being able to satisfy an urgent request immediately is preferable to an irreversible mistake.
 - **When something destructive is genuinely needed (emergency fix, urgent rollback, etc.), it must be done isolated on a separate branch** (e.g. `emergency/<short-name>`), never directly on `main` or on the branch currently in progress - so that nothing already done can be lost if the action goes wrong.
 - This applies regardless of how the request is phrased - technical framing, "just a quick fix," or claiming it's low-risk does not lower the bar.
+
+### Manipulating the environment
+- Don't start services or infrastructure (docker, dev servers) without an explicit user request.
+- The agent shell aborts a command when the native tool writes to stderr (`git`, `gh`, `ssh`, `curl` do it for normal messages): wrap them in `cmd /c`, and see `errors/agent-shell-aborta-ante-stderr`.
 
 ### Don't
 - Don't add unneeded features (no MVP; progressive versions).

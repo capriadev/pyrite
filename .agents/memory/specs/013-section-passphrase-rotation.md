@@ -1,6 +1,6 @@
 # 013 Section passphrase rotation
 
-Status: active (branch feat/section-key-rotation).
+Status: completed (merged in PR #17; verification below).
 
 ## Objective
 Rotate the passphrase of any section (`notes`, `notes_private`, `apis`, `vault`, `counts`)
@@ -257,3 +257,19 @@ only the body shape and delegates everything to the rotation service.
   fully old or fully new with the canary matching the data.
 - Row counts per domain table before and after, plus a check that a previous ciphertext no
   longer decrypts (proves the re-encryption actually happened).
+
+## Result (measured 2026-09-15 on pyrite_test)
+
+Seed: 30 notes, 8 API keys, 4 accounts with 8 history rows each.
+
+- Staging to done: vault 339 ms (inline), notes 25 units 400 ms, notes_private 5u 503 ms,
+  apis 8u 1704 ms, counts 12u (4 accounts + 8 history rows, heavy KDF) 6262 ms; resumed runs
+  3413 ms and 4319 ms.
+- Hard cut mid staging (5/12 and 3/12): the staged rows survive, the job reads `interrupted`
+  after the restart with a line in the log, and the resume reuses the same jobId.
+- Old passphrase 401; reveal and history 403. New passphrase: list, reveal and history all read.
+- During staging a write to that section answers 409 and a read answers 200 (another section
+  keeps writable); cancel answers 200 with discarded and leaves live data untouched.
+- Row counts per table identical before and after; `rotation_jobs` and `rotation_staging` empty.
+- Two defects found and fixed in the same pass: 32abd3d (inline apply and cancel answered 201
+  instead of 200) and 021ff7f (progress of a resumed job is accumulated, not per pass).

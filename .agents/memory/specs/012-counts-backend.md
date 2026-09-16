@@ -1,6 +1,6 @@
 # 012 Counts backend
 
-Status: active (branch feat/counts).
+Status: completed (merged in PR #16; change-passphrase delivered by 013).
 
 ## Objective
 Build the Counts backend: a zero-knowledge credential vault with per-record encryption

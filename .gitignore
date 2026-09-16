@@ -51,3 +51,6 @@ Thumbs.db
 # temp (cosas temporales del workspace)
 temp/
 _backups/
+
+# user (cosas de usuario)
+_keep/

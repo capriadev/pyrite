@@ -1,44 +1,23 @@
-﻿# Memory - Pyrite (dynamic, session-to-session)
+﻿# Memory - Pyrite (working state only)
 
-Update at end of session / significant checkpoint. Prune what's stale - this is not a changelog, it's working state.
+Update at session close. This is not a changelog: it is the state of the work.
 
-<!-- Pruning rules (respected each session):
-- No section should grow unbounded. If "Watch" has > ~5 lines, something should have been promoted to `errors/` or to a spec.
-- Never copy content from `architecture.md`, `AGENTS.md` or `PHILOSOPHY.md` - MEMORY.md doesn't duplicate sources of truth, only references by filename/spec.
-- At session close: review if anything in "Next up" got resolved (delete) or if anything in "Watch" escalated to a documented error (move, don't copy).
+<!-- Rules (agent-facing):
+- Working state only: in flight, next, blocked, open decisions, and norms with no other owner.
+- One line per item, no prose, no connectives, no history. If it is readable in git log, a PR, a spec or another bank, it does not go here.
+- Norm (true next week regardless of the work) belongs to AGENTS.md or architecture.md; state (changes as work advances) belongs here.
+- Caps: State <= 5, Next up <= 5, Open decisions <= 3. Overflow means wrong bank: move it, do not trim it.
+- Session close: delete resolved, move escalated. Never duplicate another bank.
 -->
 
-## Last session
-- 2026-09-13: Sesion de docs (rama docs/refresh): MEMORY al dia (logging mergeado, puerto corregido a 30010), architecture con la fila de Logging y la distincion config app/usuario (DB) vs config backend/infra (.env), capa types/, layout con logs/ y .github/; feature #6 (APIs) marcada completed y sacada del indice. Sin cambios en specs/ (registro permanente).
-- 2026-09-14: Migracion 0006 (counts) generada y aplicada en pyrite y pyrite_test (rama feat/counts); datos previos intactos. Reconstruido el snapshot 0005 que faltaba y corregida la API de constraints de schema.ts (array de builders en vez de objeto), que era la causa silenciosa del drift destructivo del generate (ver errors/drizzle-enum-y-constraint-drift).
-- 2026-09-14 (Counts Part A): DAL -> BLL -> gateway de counts commiteado en feat/counts (bd57602 repositorio, 509fca3 BLL, 8a808ce gateway). tsc limpio; scorer de fortaleza validado a mano (abc=0, password=10, correct horse battery staple 2026=94.5). Falta change-passphrase: unico criterio abierto de la spec 012.
-- 2026-09-14 (Counts Part B + spec 013): counts.service.ts suelto commiteado (9b12375) y PR #16 abierta (feat/counts -> main) con el cuerpo completo del modulo Counts. Rama nueva feat/section-key-rotation desde feat/counts para la rotacion. Spec 013 escrita y indexada como #15 (commit 278cdaa): rotacion de passphrase por seccion en segundo plano con staging durable (migration 0007 planificada: rotation_jobs + rotation_staging), apply atomico del canary, resume tras corte y cancel con rollback; primitivas de clave compartidas y arreglo de la cache de notes (hoy no ligada a la passphrase). Modelo de ejecucion confirmado por el usuario: segundo plano + rollback. Las escrituras durante el staging quedan bloqueadas (seccion en solo lectura mientras hay job abierto), decidido y documentado en la spec.
-
-- 2026-09-15 (Spec 013 implementada, verificada en vivo y MERGEADA): PR #17 (merge 9412bd3, tip limpio 85d0223); counts ya estaba mergeado en #16 y el alcance completo queda en el cuerpo del PR #17. Tiempos (pyrite_test: 30 notas, 8 claves, 4 cuentas con 8 filas de historial): vault 339 ms inline, notes 25u 400 ms, notes_private 5u 503 ms, apis 8u 1704 ms, counts 12u 6262 ms. Corte brusco a mitad de staging (5/12 y 3/12): las filas preparadas sobreviven, al reiniciar el job queda interrupted con aviso en el log y la reanudacion reutiliza el mismo jobId; con la passphrase vieja 401 y reveal/historial 403, con la nueva todo legible; durante el staging escribir da 409 y leer 200. Defectos corregidos en la pasada: 32abd3d y 021ff7f. Entorno de pruebas: pyrite_test migrada y sembrada, scripts reutilizables en temp/live/*.mjs (setup, counts, rot, check, unlock, watch, write) con passphrases test-*-pass-1/2, instancia levantada desacoplada en 30101.
-- 2026-09-15 (Spec 014, refactor de auditorias): rama refactor/counts-audits (stackea sobre docs/memory-013-merged, todavia sin mergear). Commits c8b1ab5 (spec + index #16) y abd27b9 (refactor). CountsAuditsService nuevo (weakAudit + duplicatesAudit + umbral counts.weak_threshold, 98 lineas) y counts-view.ts (CountsAccountView + toView + toViews(repo, rows), 70 lineas); counts.service.ts baja de 578 a 453 y pierde la dependencia de SettingsService. El gateway inyecta ambos servicios; bll.module registra y exporta el nuevo. Contrato intacto (mismas rutas, mismo 403 en cerrado). Verificado con npx tsc --noEmit y npm run build; sin humo en vivo (levantar la instancia queda fuera de alcance).
+## State (in flight)
+- refactor/counts-audits: PR #19 abierta (stackeada sobre #18); tsc y build limpios, sin mergear.
+- Counts cerrado (specs 012, 013, 014). Siguiente frente: Calendar (features.md #18).
+- pyrite_test: migrada y sembrada; scripts de prueba en temp/live/*.mjs; instancia de prueba en 30101.
 
 ## Next up
-- Frontend: traducir el 409 de escritura durante una rotacion a un aviso de rotacion en curso con reintento (spec 013; el backend ya lo devuelve).
-- Notes UI (frontend): carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con carpetas/pin arriba, busqueda titulo/contenido, filtros (todos/destacado/grupo/fecha), modal de passphrase para privadas. Correr react-doctor tras cambios de UI.
-- Siguiente frente grande (anotado, sin spec todavia): Calendar -> Tasks -> unificar Calendar+Tasks+Finances -> motor de errores de finanzas con Calendar y Task. Counts backend ya esta cerrado; el refactor de auditorias (spec 014) deja el dominio en forma para recibir a Calendar al lado.
-- Finances UI (spec #9) al iniciarse dispara la sub-spec C (graficos/filtros, spec 005).
-- Purge dedicado de logs (hoy la retencion por dias la hace purgeExpired() en logger.service.ts al arrancar).
-- Poda de ramas locales/remotas ya mergeadas; destructivo, requiere confirmacion explicita del usuario.
+- Notes UI (features.md #17).
+- Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 
-## Open decisions (unresolved, blocking or not)
-- `satellite-services/` esta untracked: definir si el codigo vendoreado se commitea o va a .gitignore (local-only). No bloquea.
-
-## Watch / don't forget
-- Never use emojis or em dashes (—) in anything written for the project (docs, READMEs, commits, UI copy). Plain ASCII punctuation only.
-- Counts: `counts.service.ts` en 453 lineas; las auditorias viven en `counts-audits.service.ts` y el mapeo a `CountsAccountView` en `counts-view.ts` (spec 014), las primitivas de clave en services/crypto/section-keys.ts (spec 013). Si aparece una tercera necesidad de vista/auditoria, extender esos modulos, no duplicar.
-- Counts: el umbral de la auditoria de fortaleza es la key `counts.weak_threshold` de settings (default 50 en codigo). `counts.stale_days` figura en la spec 012 pero todavia no tiene consumidor: crearlo recien al implementar el recordatorio de rotacion.
-- Host port de Postgres es 30010 (mapeo 30010:5432 en docker-compose; DB_PORT=30010 en .env.example). Otros proyectos locales ocupan el 5432 del host, por eso el mapeo no es 5432.
-- El contenedor pyrite-postgres monta el volumen docker_postgres-data (el vivo, con los datos reales); pyrite_postgres-data quedo huerfano y vacio. Se inicializó con credenciales distintas a las del compose actual (password reseteado a mano a pyrite/pyrite). Si se borra el volumen, el compose lo inicializa bien.
-- NO levantar servicios ni infraestructura (docker, dev servers) sin pedido explícito del usuario.
-- drizzle vive en apps/backend/drizzle (schema.ts + migrations) con apps/backend/drizzle.config.ts y scripts orm con `cd apps/backend`. El build backend usa rootDir "." y emite a dist/src/main.js (sin prefijo apps/backend). Los scripts orm raíz hacen `cd apps/backend && drizzle-kit <cmd>` (el config usa paths relativos al cwd).
-- Runtime decidido: Node 24.20.0 gestionado con nvm (.nvmrc en raíz, engines >=24.20 <25). Cambiar de major solo con decisión explícita del usuario. Migración 22->24 completada y verificada (tsc/build/health OK, cero cambios de código: la guía oficial nodejs.org/en/blog/migrations/v22-to-v24 no afecta a nuestro stack). Nota a futuro: OpenSSL 3.5 security level 2 en Node 24 prohibe claves RSA/DSA/DH < 2048 bits - tenerlo en cuenta en el spec de seguridad/auth.
-- SPECS NUNCA SE BORRAN: specs/ es registro permanente; al completar una feature se quita su línea de features.md y se marca la spec como completed. Numeración secuencial para eso.
-- Logs: rotacion delegada a pino-roll (`pino.transport({target:'pino-roll'})`, frequency daily + dateFormat yyyyMMdd + size, mkdir). CLAVE: en pino-roll un `size` SIN unidad se interpreta como MB, no bytes (unidades validas k/m/g); `limit` exige `limit.count` o tira al arrancar; la invocacion correcta es via transport, no `pino(roll(...))`. Retencion por dias (120) la hace purgeExpired() propio en logger.service.ts, NO pino-roll (que poda por cantidad); hay un purge dedicado planificado como follow-up. El dir de logs se resuelve desde la raiz del repo (marker workspaces), nunca desde cwd. Requisito duro: bodies de request NO se loguean y la redaccion (REDACT_PATHS) cubre password/passphrase/masterKey/pepper/secret/token/apiKey y headers authorization/cookie. Nivel por LOG_LEVEL (info por defecto).
-- react-doctor en frontend (script `npm run doctor`): scanner local de calidad React, telemetría siempre off (`--no-telemetry`), NO es gate de CI (envía telemetría/interactúa con Chrome vía playwright-core). Config en doctor.config.ts (alcance src/). Correr tras cambios de UI; la skill del agente la instala/adapta el usuario bajo `.agents/skills/`.
-- skills-lock.json: el computedHash de react-doctor quedó desactualizado a propósito tras personalizar la skill a mano (quitar references/, local-only, telemetry-off). El lock es snapshot de instalación; no regenerarlo reinstalando (perdería la personalización).
-- Entorno del agente: si el contexto se infla (muchas skills instaladas, sesion muy larga) las compactaciones entran en bucle y borran lo recien leido. Regla: leer y escribir en el mismo turno, estado en disco (git) y nada de volcar contratos a temp/ para releerlos. Ver errors/compactacion-agresiva-en-bucle y errors/editor-old-text-de-una-sola-linea. Ademas: el shell del agente aborta el comando cuando un comando nativo escribe a stderr (git escribe ahi sus mensajes normales), asi que git, gh, ssh y curl van envueltos en cmd /c.
+## Open decisions
+- satellite-services/ untracked: commitear o ignorar (local-only). Decidir al final.

@@ -1,5 +1,9 @@
-import { currencyEnum, frequencyUnitEnum, paymentModeEnum, recurrenceEndModeEnum, taskStatusEnum, taskTypeEnum } from '../../../drizzle/schema';
+import { currencyEnum, frequencyUnitEnum, paymentModeEnum, recurrenceEndModeEnum, taskPriorityEnum, taskStateEnum, taskStatusEnum, taskTypeEnum } from '../../../drizzle/schema';
 import type { Currency, TaskPaymentRow, TaskRecurrenceRow, TaskStatus, TaskType } from '../../dal/tasks/tasks.repository';
+
+/** Column enums derive from the schema, so a new value is one edit in one place. */
+export type TaskPriority = (typeof taskPriorityEnum.enumValues)[number];
+export type TaskState = (typeof taskStateEnum.enumValues)[number];
 
 /**
  * Input contract of the calendar/tasks API plus its boundary guards. Validation
@@ -46,7 +50,18 @@ export interface TaskInput {
   icon?: string | null;
   type?: TaskType;
   status?: TaskStatus;
+  /** What has to be done: the focus of the task. */
+  description?: string | null;
+  /** Extra annotation, kept from v1. */
   notes?: string | null;
+  priority?: TaskPriority | null;
+  /** What a kanban board renders; null means the task is in no board. */
+  state?: TaskState | null;
+  groupId?: string | null;
+  sectorId?: string | null;
+  /** "Otro" in the form: the sector is created (or revived) by name and reused. */
+  sectorName?: string | null;
+  linkedExpectationId?: string | null;
   startsOn?: string;
   recurrence?: TaskRecurrenceInput | null;
   payment?: TaskPaymentInput | null;
@@ -58,6 +73,9 @@ export interface TaskListQuery {
   status?: string;
   from?: string;
   to?: string;
+  /** Branch filter: the folder and everything under it. */
+  group?: string;
+  includeDescendants?: string;
 }
 
 function fromEnum<T extends string>(values: readonly string[], value: string): value is T {
@@ -86,4 +104,12 @@ export function isPaymentMode(value: string): value is PaymentMode {
 
 export function isCurrency(value: string): value is Currency {
   return fromEnum<Currency>(currencyEnum.enumValues, value);
+}
+
+export function isTaskPriority(value: string): value is TaskPriority {
+  return fromEnum<TaskPriority>(taskPriorityEnum.enumValues, value);
+}
+
+export function isTaskState(value: string): value is TaskState {
+  return fromEnum<TaskState>(taskStateEnum.enumValues, value);
 }

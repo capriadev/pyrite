@@ -13,6 +13,7 @@ import { NotesRepository } from './notes/notes.repository';
 import { CountsRepository } from './counts/counts.repository';
 import { RotationRepository } from './rotation/rotation.repository';
 import { TasksRepository } from './tasks/tasks.repository';
+import { TaskSectorsRepository } from './tasks/task-sectors.repository';
 
 class PgPoolHolder implements OnApplicationShutdown {
   constructor(readonly pool: Pool) {}
@@ -53,8 +54,9 @@ const PG_POOL = Symbol('PG_POOL');
     CountsRepository,
     RotationRepository,
     TasksRepository,
+    TaskSectorsRepository,
   ],
-  exports: [DRIZZLE_DB, SettingsRepository, FinancesRepository, RatesRepository, ApiKeysRepository, GroupsRepository, NotesRepository, CountsRepository, RotationRepository, TasksRepository],
+  exports: [DRIZZLE_DB, SettingsRepository, FinancesRepository, RatesRepository, ApiKeysRepository, GroupsRepository, NotesRepository, CountsRepository, RotationRepository, TasksRepository, TaskSectorsRepository],
 })
 export class DalModule {}
 

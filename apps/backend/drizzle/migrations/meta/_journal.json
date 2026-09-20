@@ -64,6 +64,13 @@
       "when": 1789864913479,
       "tag": "0008_brave_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789943681156,
+      "tag": "0009_faulty_diamondback",
+      "breakpoints": true
     }
   ]
 }

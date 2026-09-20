@@ -36,6 +36,8 @@ export interface TaskListFilters {
   status?: TaskStatus;
   from?: string;
   to?: string;
+  /** Branch filter: the group and its descendants, already resolved by the caller. */
+  groupIds?: string[];
 }
 
 /**
@@ -88,6 +90,10 @@ export class TasksRepository {
     if (filters.type) conditions.push(eq(tasks.type, filters.type));
     if (filters.from) conditions.push(gte(tasks.startsOn, filters.from));
     if (filters.to) conditions.push(lte(tasks.startsOn, filters.to));
+    if (filters.groupIds) {
+      if (filters.groupIds.length === 0) return [];
+      conditions.push(inArray(tasks.groupId, filters.groupIds));
+    }
     return this.db.select().from(tasks).where(and(...conditions)).orderBy(asc(tasks.startsOn));
   }
 
@@ -207,6 +213,12 @@ export class TasksRepository {
     await this.db
       .delete(taskExpectations)
       .where(and(eq(taskExpectations.taskId, taskId), gte(taskExpectations.expectedOn, from)));
+  }
+
+  /** Single expectation lookup: what linking a task to one of its payments validates. */
+  async findExpectation(id: string): Promise<TaskExpectationRow | undefined> {
+    const rows = await this.db.select().from(taskExpectations).where(eq(taskExpectations.id, id)).limit(1);
+    return rows[0];
   }
 
   async listExpectations(taskId: string): Promise<TaskExpectationRow[]> {

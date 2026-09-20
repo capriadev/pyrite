@@ -5,12 +5,14 @@ import {
   type TaskAggregate,
   type TaskExpectationRow,
   type TaskListFilters,
-  type TaskPaymentRow,
   type TaskPatch,
+  type TaskPaymentRow,
   type TaskPriceTierRow,
   type TaskRecurrenceRow,
   type TaskRow,
 } from '../../dal/tasks/tasks.repository';
+import { TaskSectorsRepository, type TaskSectorRow } from '../../dal/tasks/task-sectors.repository';
+import { GroupsService } from '../groups/groups.service';
 import { isIsoDay, isUuid } from '../../types/guards';
 import { MATERIALIZATION_HORIZON_DAYS, addDays, isoDay, occurrencesOf } from './recurrence-engine';
 import {
@@ -18,23 +20,36 @@ import {
   isFrequencyUnit,
   isPaymentMode,
   isRecurrenceEndMode,
+  isTaskPriority,
+  isTaskState,
   isTaskStatus,
   isTaskType,
   type TaskInput,
   type TaskListQuery,
   type TaskPaymentInput,
+  type TaskPriority,
   type TaskRecurrenceInput,
+  type TaskState,
   type TaskTierInput,
 } from './tasks-input';
 
-/** One task as the API returns it: shell, rule, payload and tiers together. */
+/** Domain of the group tree this service owns; other domains keep their own namespace. */
+const TASK_DOMAIN = 'tasks';
+
+/** One task as the API returns it: shell, ficha, rule, payload and tiers together. */
 export interface TaskView {
   id: string;
   title: string;
   icon: string | null;
   type: TaskRow['type'];
   status: TaskRow['status'];
+  description: string | null;
   notes: string | null;
+  priority: TaskRow['priority'];
+  state: TaskRow['state'];
+  groupId: string | null;
+  sectorId: string | null;
+  linkedExpectationId: string | null;
   startsOn: string;
   createdAt: Date;
   updatedAt: Date;
@@ -58,7 +73,11 @@ export interface MaterializationResult {
 export class TasksService {
   private readonly log = new Logger(TasksService.name);
 
-  constructor(private readonly repo: TasksRepository) {}
+  constructor(
+    private readonly repo: TasksRepository,
+    private readonly sectors: TaskSectorsRepository,
+    private readonly groups: GroupsService,
+  ) {}
 
   // ============ READS ============
 
@@ -74,7 +93,15 @@ export class TasksService {
     }
     if (query.from) filters.from = this.day(query.from, 'from');
     if (query.to) filters.to = this.day(query.to, 'to');
+    if (query.group) filters.groupIds = await this.branchIds(query.group, query.includeDescendants === 'true');
     return (await this.repo.listAggregates(filters)).map((aggregate) => this.toView(aggregate));
+  }
+
+  /** A folder filter resolves to the node alone, or to the node plus its whole subtree. */
+  private async branchIds(groupId: string, includeDescendants: boolean): Promise<string[]> {
+    if (includeDescendants) return this.groups.subtreeIds(TASK_DOMAIN, groupId);
+    const group = await this.groups.find(TASK_DOMAIN, groupId);
+    return [group.id];
   }
 
   async get(id: string): Promise<TaskView> {
@@ -97,7 +124,13 @@ export class TasksService {
       type,
       startsOn,
       icon: input.icon ?? null,
+      description: input.description ?? null,
       notes: input.notes ?? null,
+      priority: this.priority(input.priority),
+      state: this.state(input.state),
+      groupId: await this.resolveGroup(input.groupId),
+      sectorId: await this.resolveSector(input),
+      linkedExpectationId: await this.resolveLink(input.linkedExpectationId),
     });
     if (recurrence) await this.repo.saveRecurrence(task.id, recurrence);
     if (payment) await this.repo.savePayment(task.id, payment);
@@ -129,7 +162,17 @@ export class TasksService {
     if (input.type !== undefined) patch.type = type;
     if (input.status !== undefined) patch.status = this.requireStatus(input.status);
     if (input.icon !== undefined) patch.icon = input.icon;
+    if (input.description !== undefined) patch.description = input.description;
     if (input.notes !== undefined) patch.notes = input.notes;
+    if (input.priority !== undefined) patch.priority = this.priority(input.priority);
+    if (input.state !== undefined) patch.state = this.state(input.state);
+    if (input.groupId !== undefined) patch.groupId = await this.resolveGroup(input.groupId);
+    if (input.sectorId !== undefined || input.sectorName !== undefined) {
+      patch.sectorId = await this.resolveSector(input);
+    }
+    if (input.linkedExpectationId !== undefined) {
+      patch.linkedExpectationId = await this.resolveLink(input.linkedExpectationId);
+    }
     if (input.startsOn !== undefined) patch.startsOn = this.day(input.startsOn, 'startsOn');
     await this.repo.update(id, patch);
 
@@ -310,6 +353,82 @@ export class TasksService {
     return rows;
   }
 
+  // ============ FICHA: GRUPO, SECTOR, PRIORIDAD, ESTADO Y VINCULO ============
+
+  /** Folder assignment: null unassigns, anything else must exist in the tasks tree. */
+  private async resolveGroup(groupId: string | null | undefined): Promise<string | null> {
+    if (groupId === undefined || groupId === null) return null;
+    const group = await this.groups.find(TASK_DOMAIN, groupId);
+    return group.id;
+  }
+
+  /** Sector by id or by name: "otro" in the form arrives as `sectorName`. */
+  private async resolveSector(input: TaskInput): Promise<string | null> {
+    if (input.sectorId !== undefined) {
+      if (input.sectorId === null) return null;
+      if (!isUuid(input.sectorId)) throw new BadRequestException('invalid sector id');
+      const sector = await this.sectors.findById(input.sectorId);
+      if (!sector) throw new NotFoundException('sector not found');
+      return sector.id;
+    }
+    if (input.sectorName !== undefined) {
+      if (input.sectorName === null || input.sectorName.trim() === '') return null;
+      return this.ensureSector(input.sectorName);
+    }
+    return null;
+  }
+
+  /** The catalogue reuses by name and revives a retired sector instead of duplicating it. */
+  async ensureSector(name: string): Promise<string> {
+    const trimmed = name.trim();
+    if (!trimmed) throw new BadRequestException('sector name is required');
+    const existing = await this.sectors.findByName(trimmed);
+    if (existing) {
+      if (existing.status === 'deleted') await this.sectors.reactivate(existing.id);
+      return existing.id;
+    }
+    return (await this.sectors.create(trimmed)).id;
+  }
+
+  /**
+   * The link points at a payment expectation, which normally belongs to the subscription
+   * task that generates it: "renovar el dominio" points at the domain's payment. Only its
+   * existence is validated, because owning it is not required.
+   */
+  private async resolveLink(linkedExpectationId: string | null | undefined): Promise<string | null> {
+    if (linkedExpectationId === undefined || linkedExpectationId === null) return null;
+    if (!isUuid(linkedExpectationId)) throw new BadRequestException('invalid expectation id');
+    const expectation = await this.repo.findExpectation(linkedExpectationId);
+    if (!expectation) throw new NotFoundException('expectation not found');
+    return expectation.id;
+  }
+
+  /** Both are nullable: a task without priority or state is a legitimate task. */
+  private priority(value: TaskPriority | null | undefined): TaskPriority | null {
+    if (value === undefined || value === null) return null;
+    if (!isTaskPriority(value)) throw new BadRequestException('invalid priority');
+    return value;
+  }
+
+  private state(value: TaskState | null | undefined): TaskState | null {
+    if (value === undefined || value === null) return null;
+    if (!isTaskState(value)) throw new BadRequestException('invalid state');
+    return value;
+  }
+
+  // ============ SECTORS ============
+
+  async listSectors(): Promise<TaskSectorRow[]> {
+    return this.sectors.list();
+  }
+
+  async createSector(name: string): Promise<TaskSectorRow> {
+    const id = await this.ensureSector(name);
+    const sector = await this.sectors.findById(id);
+    if (!sector) throw new NotFoundException('sector not found');
+    return sector;
+  }
+
   // ============ VIEW ============
 
   private toView(aggregate: TaskAggregate): TaskView {
@@ -320,7 +439,13 @@ export class TasksService {
       icon: task.icon,
       type: task.type,
       status: task.status,
+      description: task.description,
       notes: task.notes,
+      priority: task.priority,
+      state: task.state,
+      groupId: task.groupId,
+      sectorId: task.sectorId,
+      linkedExpectationId: task.linkedExpectationId,
       startsOn: task.startsOn,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,

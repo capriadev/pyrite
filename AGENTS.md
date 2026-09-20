@@ -63,7 +63,7 @@ This file is an index, entry point, and project methodology. It does not contain
 1. Every code change starts from a spec in `.agents/memory/specs/`.
 2. Specs are indexed in `.agents/memory/features.md` (do not commit code without a backing spec).
 3. **Spec naming:** `NNN-descriptive-name.md` (001, 002, ...). One spec = one atomic objective; split if too large.
-4. **Index rules** (`features.md`): line `last_id: N`; new feature = `last_id + 1`, append `#N`, update last_id. When a feature is complete, remove its line and mark the spec status `completed`. **Specs are never deleted** - `specs/` is a permanent registry; the numbering exists for that. **Never reuse an ID.**
+4. **Index rules** (`features.md`): line `last_id: N`; new feature = `last_id + 1`, append `#N`, update last_id. When a feature is complete, remove its line: the index is the only owner of the state, and the spec stays as the technical record (no status line inside the spec). **Specs are never deleted** - `specs/` is a permanent registry; the numbering exists for that. **Never reuse an ID.**
 5. **Spec is immutable once implementation starts.** Edits are only for planning (before the code begins). Once running, a spec records what was built and how - it is not edited after the fact. Corrections or improvements later are a NEW spec (fix `NNN-fix-<slug>.md` or an implementation spec), indexed in features.md so the index stays the index and no one reads everything.
 
 ### Anticipate and ask - pre-check before building

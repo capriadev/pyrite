@@ -49,6 +49,11 @@ Mechanical procedure to open a new spec, in any project using a features-index +
 
 6. **Confirm to the user**: spec file path + assigned ID + verification result. Do not start implementing unless explicitly asked.
 
+## Pyrite notes (project-specific, keep these)
+
+- **Specs carry no status line.** The live state lives only in `features.md` (pending / active / blocked / completed) and the spec is the technical record: immutable once implementation starts, never deleted, never given a state of its own.
+- **On close, the verification record goes to `docs/records/NNN-<spec-slug>.md`** (see `docs/records/README.md`): a snapshot of what was measured and found, one file per spec. The spec keeps only a one-line pointer to it.
+
 ## Edge cases
 - **Spec too large**: split before creating files.
 - **ID collision on disk**: index is out of sync with disk — stop, report, do not overwrite.

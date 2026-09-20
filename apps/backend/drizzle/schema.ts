@@ -317,6 +317,8 @@ export const recurrenceEndModeEnum = pgEnum('recurrence_end_mode', ['never', 'on
 /** What an annual rule does when its day is February 29 and the year has no such day. */
 export const leapDayModeEnum = pgEnum('leap_day_mode', ['feb28', 'mar01']);
 export const paymentModeEnum = pgEnum('payment_mode', ['recurrente', 'cuotas', 'fija']);
+/** Unit of the free trial: a month is a calendar month, not thirty days. */
+export const trialUnitEnum = pgEnum('trial_unit', ['day', 'week', 'month']);
 export const expectationStatusEnum = pgEnum('expectation_status', ['pending', 'settled', 'exception', 'cancelled']);
 export const taskPriorityEnum = pgEnum('task_priority', ['baja', 'media', 'alta', 'critica']);
 export const taskStateEnum = pgEnum('task_state', ['pendiente', 'en_progreso', 'completado', 'cancelado']);
@@ -409,7 +411,9 @@ export const taskPayments = pgTable('task_payments', {
   priceFixed: boolean('price_fixed').notNull().default(false),
   priceAmount: numeric('price_amount', { precision: 14, scale: 2 }),
   priceCurrency: currencyEnum('price_currency').notNull().default('ARS'),
-  trialDays: integer('trial_days').notNull().default(0),
+  /** Free trial: a quantity plus its unit (`day` | `week` | `month`), zero meaning none. */
+  trialCount: integer('trial_count').notNull().default(0),
+  trialUnit: trialUnitEnum('trial_unit').notNull().default('day'),
   installmentsCount: integer('installments_count'),
 });
 

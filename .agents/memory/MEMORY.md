@@ -11,14 +11,14 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- feature/tasks-dates: spec 017 completa y verificada (puntual simple/rango/multiple, semanal con dias y hora por dia, bisemanal anclada, switch 28/02 o 01/03); PR pendiente de abrir.
-- feature/tasks-organization: spec 016 completa y verificada; PR #21 esperando merge.
-- Pendientes del frente: 018 pagos v2 (#26), UI (#24), notificaciones (#27).
+- feature/tasks-payments-v2: spec 018 completa y verificada (prueba con unidad y cantidad); PR pendiente de abrir.
+- Frente Tasks backend cerrado: 015 + 016 + 017 + 018 mergeadas o en PR; quedan la UI (#24) y las notificaciones (#27).
+- Pendientes posteriores: motores de proyeccion y de conciliacion (specs nuevas, sin abrir).
 - pyrite_test: migrada y sembrada; scripts de prueba en temp/live/*.mjs; instancia de prueba en 30101.
 
 ## Next up
-- Abrir la PR de feature/tasks-dates y encarar la 018 (prueba con unidad y cantidad).
-- Notes UI (features.md #17).
+- Abrir la PR de feature/tasks-payments-v2.
+- Notes UI (features.md #17) o abrir el frente de los motores de proyeccion y conciliacion.
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 
 ## Open decisions

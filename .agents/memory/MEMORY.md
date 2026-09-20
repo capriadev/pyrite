@@ -11,11 +11,12 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- refactor/counts-audits: PR #19 abierta (stackeada sobre #18); tsc y build limpios, sin mergear.
-- Counts cerrado (specs 012, 013, 014). Siguiente frente: Calendar (features.md #18).
+- feature/calendar-core: backend de la spec 015 commiteado (a198532) y pusheado; tsc, build y 21 aserciones del motor en verde. Faltan humo HTTP y UI.
+- PRs #18 (memoria) y #19 (refactor de counts) sin mergear; la rama de calendar stackea sobre #19.
 - pyrite_test: migrada y sembrada; scripts de prueba en temp/live/*.mjs; instancia de prueba en 30101.
 
 ## Next up
+- Spec 015: humo HTTP de /tasks y /calendar contra la base (requiere levantar el backend, pedido explicito del usuario).
 - Notes UI (features.md #17).
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 

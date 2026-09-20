@@ -1,9 +1,10 @@
-import { currencyEnum, frequencyUnitEnum, paymentModeEnum, recurrenceEndModeEnum, taskPriorityEnum, taskStateEnum, taskStatusEnum, taskTypeEnum } from '../../../drizzle/schema';
+import { currencyEnum, frequencyUnitEnum, leapDayModeEnum, paymentModeEnum, recurrenceEndModeEnum, taskPriorityEnum, taskStateEnum, taskStatusEnum, taskTypeEnum } from '../../../drizzle/schema';
 import type { Currency, TaskPaymentRow, TaskRecurrenceRow, TaskStatus, TaskType } from '../../dal/tasks/tasks.repository';
 
 /** Column enums derive from the schema, so a new value is one edit in one place. */
 export type TaskPriority = (typeof taskPriorityEnum.enumValues)[number];
 export type TaskState = (typeof taskStateEnum.enumValues)[number];
+export type LeapDayMode = (typeof leapDayModeEnum.enumValues)[number];
 
 /**
  * Input contract of the calendar/tasks API plus its boundary guards. Validation
@@ -21,6 +22,33 @@ export interface TaskRecurrenceInput {
   endsMode?: RecurrenceEndMode;
   endsOn?: string | null;
   occurrencesCount?: number | null;
+  /** Only for the annual rule: where February 29 lands when the year has no such day. */
+  leapDayMode?: LeapDayMode;
+  /** Only for the weekly rule: the selected days, each with its own optional hour. */
+  weekdays?: TaskWeekdayInput[];
+  /** Optional hour of the series; the weekly rule carries one per selected day instead. */
+  time?: string | null;
+  timeTo?: string | null;
+}
+
+/** One selected weekday of a weekly rule; ISO numbering (1 = Monday). */
+export interface TaskWeekdayInput {
+  weekday: number;
+  time?: string | null;
+  timeTo?: string | null;
+}
+
+/**
+ * One dated entry of a punctual task. The simple format is a single row with `date` (and
+ * optionally `dateTo` for a range); the multiple format is several rows. `time` and `label`
+ * are metadata: the calendar shows the day either way.
+ */
+export interface TaskDateInput {
+  date: string;
+  dateTo?: string | null;
+  time?: string | null;
+  timeTo?: string | null;
+  label?: string | null;
 }
 
 /** A price tier: the promo that hands over to the regular price. */
@@ -63,6 +91,8 @@ export interface TaskInput {
   sectorName?: string | null;
   linkedExpectationId?: string | null;
   startsOn?: string;
+  /** Punctual entries: one row is the simple format, several are the multiple one. */
+  dates?: TaskDateInput[];
   recurrence?: TaskRecurrenceInput | null;
   payment?: TaskPaymentInput | null;
   tiers?: TaskTierInput[];
@@ -112,4 +142,15 @@ export function isTaskPriority(value: string): value is TaskPriority {
 
 export function isTaskState(value: string): value is TaskState {
   return fromEnum<TaskState>(taskStateEnum.enumValues, value);
+}
+
+export function isLeapDayMode(value: string): value is LeapDayMode {
+  return fromEnum<LeapDayMode>(leapDayModeEnum.enumValues, value);
+}
+
+/** `HH:MM` in 24 hours: the only time format this API accepts. */
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export function isTimeOfDay(value: string): boolean {
+  return TIME_PATTERN.test(value);
 }

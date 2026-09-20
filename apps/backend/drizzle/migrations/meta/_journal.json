@@ -71,6 +71,13 @@
       "when": 1789943681156,
       "tag": "0009_faulty_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789945130315,
+      "tag": "0010_nappy_viper",
+      "breakpoints": true
     }
   ]
 }

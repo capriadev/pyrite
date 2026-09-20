@@ -314,6 +314,8 @@ export const taskTypeEnum = pgEnum('task_type', ['puntual', 'recurrente', 'pago'
 export const taskStatusEnum = pgEnum('task_status', ['active', 'paused', 'deleted']);
 export const frequencyUnitEnum = pgEnum('frequency_unit', ['day', 'week', 'month', 'year']);
 export const recurrenceEndModeEnum = pgEnum('recurrence_end_mode', ['never', 'on_date', 'after_count']);
+/** What an annual rule does when its day is February 29 and the year has no such day. */
+export const leapDayModeEnum = pgEnum('leap_day_mode', ['feb28', 'mar01']);
 export const paymentModeEnum = pgEnum('payment_mode', ['recurrente', 'cuotas', 'fija']);
 export const expectationStatusEnum = pgEnum('expectation_status', ['pending', 'settled', 'exception', 'cancelled']);
 export const taskPriorityEnum = pgEnum('task_priority', ['baja', 'media', 'alta', 'critica']);
@@ -371,6 +373,11 @@ export const taskRecurrence = pgTable('task_recurrence', {
   endsMode: recurrenceEndModeEnum('ends_mode').notNull().default('never'),
   endsOn: date('ends_on'),
   occurrencesCount: integer('occurrences_count'),
+  /** Only meaningful on an annual rule: February 29 has no home in a common year. */
+  leapDayMode: leapDayModeEnum('leap_day_mode').notNull().default('feb28'),
+  /** Optional hour of the series (`HH:MM`); the weekly rule carries one per selected day. */
+  time: text('time'),
+  timeTo: text('time_to'),
 });
 
 /**
@@ -418,8 +425,45 @@ export const taskExpectations = pgTable('task_expectations', {
   estimatedAmount: numeric('estimated_amount', { precision: 14, scale: 2 }),
   currency: currencyEnum('currency'),
   tierPosition: integer('tier_position'),
+  /** Time of day (`HH:MM`) and optional end of a range: metadata the detail view reads. */
+  scheduledTime: text('scheduled_time'),
+  timeTo: text('time_to'),
+  /** Free label of a punctual entry ("con Nico", "turno 3"): the multiple format uses it. */
+  label: text('label'),
   status: expectationStatusEnum('status').notNull().default('pending'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique('task_expectations_task_date_key').on(t.taskId, t.expectedOn),
+]);
+
+/**
+ * Dated entries of a punctual task (spec 017). One row is the simple format (start and end
+ * date plus an hour), and N rows are the multiple format: loose dates, each with its own
+ * optional hour, hour range and label. A range shows on every day it covers.
+ */
+export const taskDates = pgTable('task_dates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  date: date('date').notNull(),
+  dateTo: date('date_to'),
+  time: text('time'),
+  timeTo: text('time_to'),
+  label: text('label'),
+}, (t) => [
+  unique('task_dates_task_date_key').on(t.taskId, t.date),
+]);
+
+/**
+ * Selected weekdays of a weekly rule, each with its own optional hour: a single hour among
+ * the rows acts as the global one for the days that do not carry their own.
+ */
+export const taskWeekdays = pgTable('task_weekdays', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  /** ISO day of the week: 1 is Monday, 7 is Sunday. */
+  weekday: integer('weekday').notNull(),
+  time: text('time'),
+  timeTo: text('time_to'),
+}, (t) => [
+  unique('task_weekdays_task_weekday_key').on(t.taskId, t.weekday),
 ]);

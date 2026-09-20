@@ -12,6 +12,10 @@ export interface CalendarEntry {
   taskStatus: TaskRow['status'];
   amount: string | null;
   currency: string | null;
+  /** Hour of the entry, its optional end and its free label: metadata the detail view reads. */
+  scheduledTime: string | null;
+  timeTo: string | null;
+  label: string | null;
   status: TaskExpectationRow['status'];
 }
 
@@ -58,6 +62,9 @@ export class CalendarService {
         taskStatus: task.status,
         amount: expectation.estimatedAmount,
         currency: expectation.currency,
+        scheduledTime: expectation.scheduledTime,
+        timeTo: expectation.timeTo,
+        label: expectation.label,
         status: expectation.status,
       });
     }
@@ -75,6 +82,9 @@ export class CalendarService {
         taskStatus: task.status,
         amount: null,
         currency: null,
+        scheduledTime: null,
+        timeTo: null,
+        label: null,
         status: 'pending',
       });
     }

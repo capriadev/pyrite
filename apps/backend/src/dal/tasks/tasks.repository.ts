@@ -2,10 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
 import {
+  taskDates,
   taskExpectations,
   taskPayments,
   taskPriceTiers,
   taskRecurrence,
+  taskWeekdays,
   tasks,
 } from '../../../drizzle/schema';
 
@@ -18,17 +20,23 @@ export type TaskRecurrenceRow = typeof taskRecurrence.$inferSelect;
 export type TaskPriceTierRow = typeof taskPriceTiers.$inferSelect;
 export type TaskPaymentRow = typeof taskPayments.$inferSelect;
 export type TaskExpectationRow = typeof taskExpectations.$inferSelect;
+export type TaskDateRow = typeof taskDates.$inferSelect;
+export type TaskWeekdayRow = typeof taskWeekdays.$inferSelect;
 
 export type TaskType = TaskRow['type'];
 export type TaskStatus = TaskRow['status'];
 export type Currency = TaskPriceTierRow['currency'];
 
-/** A task with its rule, tiers and payment payload: exactly what the engine consumes. */
+/** A task with its rule, tiers, payment payload, dates and weekdays: the engine's input. */
 export interface TaskAggregate {
   task: TaskRow;
   recurrence: TaskRecurrenceRow | null;
   tiers: TaskPriceTierRow[];
   payment: TaskPaymentRow | null;
+  /** Dated entries of a punctual task (spec 017). */
+  dates: TaskDateRow[];
+  /** Selected weekdays of a weekly rule, with their own optional hours. */
+  weekdays: TaskWeekdayRow[];
 }
 
 export interface TaskListFilters {
@@ -50,6 +58,9 @@ export interface ExpectationInsert {
   estimatedAmount: string | null;
   currency: Currency | null;
   tierPosition: number | null;
+  scheduledTime: string | null;
+  timeTo: string | null;
+  label: string | null;
 }
 
 /** Column patch of a task, derived from the schema so it cannot drift. */
@@ -155,16 +166,62 @@ export class TasksRepository {
       .orderBy(asc(taskPriceTiers.position));
   }
 
+  /** Dated entries of a punctual task, oldest first. */
+  async findDates(taskId: string): Promise<TaskDateRow[]> {
+    return this.db.select().from(taskDates).where(eq(taskDates.taskId, taskId)).orderBy(asc(taskDates.date));
+  }
+
+  /** Selected weekdays of a weekly rule, ISO order. */
+  async findWeekdays(taskId: string): Promise<TaskWeekdayRow[]> {
+    return this.db
+      .select()
+      .from(taskWeekdays)
+      .where(eq(taskWeekdays.taskId, taskId))
+      .orderBy(asc(taskWeekdays.weekday));
+  }
+
+  /** Full swap of the dated entries in one transaction: an edit replaces the set. */
+  async replaceDates(taskId: string, rows: Array<Omit<typeof taskDates.$inferInsert, 'taskId' | 'id'>>): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.delete(taskDates).where(eq(taskDates.taskId, taskId));
+      if (rows.length > 0) {
+        await tx.insert(taskDates).values(rows.map((row) => ({ taskId, ...row })));
+      }
+    });
+  }
+
+  /** Full swap of the selected weekdays, same rule as the dates. */
+  async replaceWeekdays(
+    taskId: string,
+    rows: Array<Omit<typeof taskWeekdays.$inferInsert, 'taskId' | 'id'>>,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.delete(taskWeekdays).where(eq(taskWeekdays.taskId, taskId));
+      if (rows.length > 0) {
+        await tx.insert(taskWeekdays).values(rows.map((row) => ({ taskId, ...row })));
+      }
+    });
+  }
+
   /** The task plus everything the engine needs, resolved in one place. */
   async findAggregate(id: string): Promise<TaskAggregate | null> {
     const task = await this.findById(id);
     if (!task) return null;
-    const [recurrence, payment, tiers] = await Promise.all([
+    const [recurrence, payment, tiers, dates, weekdays] = await Promise.all([
       this.findRecurrence(id),
       this.findPayment(id),
       this.findTiers(id),
+      this.findDates(id),
+      this.findWeekdays(id),
     ]);
-    return { task, recurrence: recurrence ?? null, payment: payment ?? null, tiers };
+    return {
+      task,
+      recurrence: recurrence ?? null,
+      payment: payment ?? null,
+      tiers,
+      dates,
+      weekdays,
+    };
   }
 
   /** Tasks with their rules: the input of a list view or a materialization pass. */
@@ -172,7 +229,7 @@ export class TasksRepository {
     const rows = await this.list(filters);
     if (rows.length === 0) return [];
     const ids = rows.map((row) => row.id);
-    const [recurrences, payments, tiers] = await Promise.all([
+    const [recurrences, payments, tiers, dates, weekdays] = await Promise.all([
       this.db.select().from(taskRecurrence).where(inArray(taskRecurrence.taskId, ids)),
       this.db.select().from(taskPayments).where(inArray(taskPayments.taskId, ids)),
       this.db
@@ -180,18 +237,30 @@ export class TasksRepository {
         .from(taskPriceTiers)
         .where(inArray(taskPriceTiers.taskId, ids))
         .orderBy(asc(taskPriceTiers.position)),
+      this.db.select().from(taskDates).where(inArray(taskDates.taskId, ids)).orderBy(asc(taskDates.date)),
+      this.db
+        .select()
+        .from(taskWeekdays)
+        .where(inArray(taskWeekdays.taskId, ids))
+        .orderBy(asc(taskWeekdays.weekday)),
     ]);
     const recurrenceByTask = new Map(recurrences.map((row) => [row.taskId, row]));
     const paymentByTask = new Map(payments.map((row) => [row.taskId, row]));
-    const tiersByTask = new Map<string, TaskPriceTierRow[]>();
-    for (const tier of tiers) {
-      tiersByTask.set(tier.taskId, [...(tiersByTask.get(tier.taskId) ?? []), tier]);
-    }
+    const group = <T extends { taskId: string }>(source: T[]): Map<string, T[]> => {
+      const map = new Map<string, T[]>();
+      for (const row of source) map.set(row.taskId, [...(map.get(row.taskId) ?? []), row]);
+      return map;
+    };
+    const tiersByTask = group(tiers);
+    const datesByTask = group(dates);
+    const weekdaysByTask = group(weekdays);
     return rows.map((task) => ({
       task,
       recurrence: recurrenceByTask.get(task.id) ?? null,
       payment: paymentByTask.get(task.id) ?? null,
       tiers: tiersByTask.get(task.id) ?? [],
+      dates: datesByTask.get(task.id) ?? [],
+      weekdays: weekdaysByTask.get(task.id) ?? [],
     }));
   }
 

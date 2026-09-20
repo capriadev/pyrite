@@ -13,8 +13,8 @@ import type { SectionRotator, StageReporter } from '../rotation/section-rotator'
 import { SECRET_FIELDS, encryptedPatch, fieldCipher, isSecretField, secretAad, type SecretField } from './counts-fields';
 import { toViews, type CountsAccountView } from './counts-view';
 import { scorePassword } from './password-strength';
-import { isUuid, type CountsAccountInput } from './counts-input';
-
+import { isUuid } from '../../types/guards';
+import type { CountsAccountInput } from './counts-input';
 const SECTION = 'counts';
 
 /** Physical tables a rotation of this section writes back: the account and its history. */

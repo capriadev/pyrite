@@ -2,7 +2,8 @@ import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Q
 import { CountsService } from '../../bll/counts/counts.service';
 import { CountsAuditsService, type CountsDuplicateGroup } from '../../bll/counts/counts-audits.service';
 import { type CountsAccountView } from '../../bll/counts/counts-view';
-import { isCredentialType, isUuid, type CountsAccountInput } from '../../bll/counts/counts-input';
+import { isCredentialType, type CountsAccountInput } from '../../bll/counts/counts-input';
+import { isUuid } from '../../types/guards';
 import { type SecretField } from '../../bll/counts/counts-fields';
 import type { CountsListFilters } from '../../dal/counts/counts.repository';
 import type { GroupRow } from '../../dal/groups/groups.repository';

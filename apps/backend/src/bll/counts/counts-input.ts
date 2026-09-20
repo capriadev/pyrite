@@ -29,10 +29,3 @@ export type CountsAccountInput = {
 export function isCredentialType(value: string): value is CredentialType {
   return (credentialTypeEnum.enumValues as readonly string[]).includes(value);
 }
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Postgres answers a malformed uuid with a 500, so ids are checked before they reach SQL. */
-export function isUuid(value: string): boolean {
-  return UUID_PATTERN.test(value);
-}

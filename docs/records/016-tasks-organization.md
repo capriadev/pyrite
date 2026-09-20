@@ -24,7 +24,7 @@
 ## Verificacion
 
 - `npm run tsc` limpio (backend y frontend) y `npm run build:backend` limpio.
-- Humo de organizacion, 17 chequeos en verde (`temp/smoke-org2.mjs`): arbol de cuatro niveles,
+- Humo de organizacion, 17 chequeos en verde (`apps/backend/test/smoke-016-organization.mjs`): arbol de cuatro niveles,
   nombre repetido al mismo nivel (409) y permitido bajo otro padre, tarea asignada al
   subnivel con prioridad, estado, descripcion y sector creado al vuelo, filtro por rama con y
   sin descendientes, ciclo rechazado (400), limpieza de prioridad y estado con `null`,

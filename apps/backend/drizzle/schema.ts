@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   boolean,
   date,
   foreignKey,
@@ -227,14 +228,26 @@ export const countsAccountGroups = pgTable('counts_account_groups', {
 // Groups (unified per-domain)
 // ============================================================
 
+/**
+ * Tree of folders/categories shared by every domain: roots have `parent_id` null and
+ * any node can hold children, so `freelancer/clientes/cliente-x` is just three levels
+ * of the same mechanism. Uniqueness is per level: two different parents can both have
+ * a child called `clientes`, but the same name cannot repeat under the same parent.
+ */
 export const groups = pgTable('groups', {
   id: uuid('id').primaryKey().defaultRandom(),
   domain: text('domain').notNull(),
+  parentId: uuid('parent_id').references((): AnyPgColumn => groups.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   status: movementStatusEnum('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  unique('groups_domain_name_key').on(t.domain, t.name),
+  uniqueIndex('groups_domain_root_name_key')
+    .on(t.domain, t.name)
+    .where(sql`parent_id is null`),
+  uniqueIndex('groups_domain_parent_name_key')
+    .on(t.domain, t.parentId, t.name)
+    .where(sql`parent_id is not null`),
 ]);
 
 // ============================================================
@@ -303,12 +316,34 @@ export const frequencyUnitEnum = pgEnum('frequency_unit', ['day', 'week', 'month
 export const recurrenceEndModeEnum = pgEnum('recurrence_end_mode', ['never', 'on_date', 'after_count']);
 export const paymentModeEnum = pgEnum('payment_mode', ['recurrente', 'cuotas', 'fija']);
 export const expectationStatusEnum = pgEnum('expectation_status', ['pending', 'settled', 'exception', 'cancelled']);
+export const taskPriorityEnum = pgEnum('task_priority', ['baja', 'media', 'alta', 'critica']);
+export const taskStateEnum = pgEnum('task_state', ['pendiente', 'en_progreso', 'completado', 'cancelado']);
+
+/**
+ * Loose sectors of a task (cliente, estudios, personal...). "Otro" in the form is a
+ * sector created on the fly: it lands here and is offered next time, same idea as the
+ * on-the-fly category of finances. A sector is a task field, not a tree node: the group
+ * tree is structure, the sector is a classification.
+ */
+export const taskSectors = pgTable('task_sectors', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  status: movementStatusEnum('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('task_sectors_name_key').on(t.name),
+]);
 
 /**
  * Everything with a date is a task: a punctual event, a recurring activity or a
  * payment. Calendar owns no rows of its own - it reads and displays what tasks
  * computes (spec 015). Dates, titles and estimates only: no secret lives here,
  * so this domain has no crypto section and no passphrase gate.
+ *
+ * Spec 016 adds the organization layer: the group tree (`group_id`), the sector and the
+ * fields of the ficha. `state` is what a kanban board renders, and both `priority` and
+ * `state` are nullable on purpose: not everything has a priority, and a task without a
+ * state simply does not appear in any board.
  */
 export const tasks = pgTable('tasks', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -316,7 +351,13 @@ export const tasks = pgTable('tasks', {
   icon: text('icon'),
   type: taskTypeEnum('type').notNull(),
   status: taskStatusEnum('status').notNull().default('active'),
+  description: text('description'),
   notes: text('notes'),
+  priority: taskPriorityEnum('priority'),
+  state: taskStateEnum('state'),
+  groupId: uuid('group_id').references(() => groups.id, { onDelete: 'set null' }),
+  sectorId: uuid('sector_id').references(() => taskSectors.id, { onDelete: 'set null' }),
+  linkedExpectationId: uuid('linked_expectation_id').references((): AnyPgColumn => taskExpectations.id, { onDelete: 'set null' }),
   startsOn: date('starts_on').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

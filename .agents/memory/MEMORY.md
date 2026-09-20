@@ -14,7 +14,7 @@ Update at session close. This is not a changelog: it is the state of the work.
 - feature/tasks-payments-v2: spec 018 completa y verificada (prueba con unidad y cantidad); PR pendiente de abrir.
 - Frente Tasks backend cerrado: 015 + 016 + 017 + 018 mergeadas o en PR; quedan la UI (#24) y las notificaciones (#27).
 - Pendientes posteriores: motores de proyeccion y de conciliacion (specs nuevas, sin abrir).
-- pyrite_test: migrada y sembrada; scripts de prueba en temp/live/*.mjs; instancia de prueba en 30101.
+- Verificacion del backend: `apps/backend/test/` (34 aserciones del motor mas 4 humos HTTP, con README); `pyrite_test` migrada y sembrada, con los scripts de la 013 en temp/live/.
 
 ## Next up
 - Abrir la PR de feature/tasks-payments-v2.

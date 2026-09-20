@@ -28,7 +28,7 @@
 - Motor: **30 aserciones en verde** (las 21 de la 015 mas 9 nuevas de la 017) sobre puntual
   multiple, rango, semanal con dos dias, hora global heredada, bisemanal anclada y los dos
   modos del 29 de febrero.
-- Humo de fechas y horarios: **15 chequeos en verde** (`temp/smoke-dates2.mjs`): tres fechas
+- Humo de fechas y horarios: **15 chequeos en verde** (`apps/backend/test/smoke-017-dates.mjs`): tres fechas
   exactas con hora y etiqueta, rango visto dia por dia, semanal con hora por dia, bisemanal,
   29 de febrero en febrero y en marzo, el calendario mostrando hora y etiqueta, y 400 para
   hora invalida, dia de semana invalido y rango invertido.

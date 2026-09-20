@@ -29,7 +29,7 @@
   tabla. La base de desarrollo tenia 0 filas.
 - Motor: **34 aserciones en verde** (las 30 anteriores mas 4 nuevas: dos semanas, un mes que
   recorta al ultimo dia, cero y tres dias).
-- Humo de pagos v2: **11 chequeos en verde** (`temp/smoke-payments2.mjs`): un mes de prueba
+- Humo de pagos v2: **11 chequeos en verde** (`apps/backend/test/smoke-018-payments.mjs`): un mes de prueba
   cayendo el 30 de noviembre, dos semanas y catorce dias llegando al mismo dia, sin prueba
   cobrando el mismo dia, el campo viejo devolviendo 400 con el reemplazo nombrado, unidad
   invalida con 400 y las cuotas ignorando la prueba como antes.

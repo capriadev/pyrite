@@ -26,9 +26,9 @@ Estatica:
 
 - `npm run tsc` limpio (backend y frontend) y `npm run build:backend` limpio.
 - 21 aserciones del motor sobre los casos de la spec, todas en verde
-  (`temp/verify-calendar-engine.mjs`).
+  (`apps/backend/test/engine-asserts.mjs`).
 
-Humo HTTP, 18 chequeos en verde (`temp/smoke.mjs` levanta el backend compilado, corre los
+Humo HTTP, 18 chequeos en verde (`apps/backend/test/smoke-015-calendar.mjs` levanta el backend compilado, corre los
 casos y lo apaga):
 
 - Suscripcion USD con precio fijo y prueba de 14 dias: 201, primer cobro en inicio + 14,

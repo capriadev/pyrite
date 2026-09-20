@@ -27,6 +27,5 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #22 Logs purge - purge dedicado de logs (hoy purgeExpired() al arrancar; spec 011) [status: pending]
 #23 Credential rotation reminder - recordatorio de rotacion de credenciales (counts.stale_days sin consumidor; spec 012) [status: pending]
 #24 Calendario y Tasks UI - vista de calendario (mes/dia), pantalla de tasks (carpetas, grupos, kanban opcional) y accesos rapidos con plantillas desde calendar [status: pending]
-#25 Tasks fechas y horarios - puntual simple/rango/multiple con hora, etiqueta y rango horario; semanal con dias seleccionables y horario por dia; motor extendido y switch 28/02 o 01/03 para el anual [spec: 017-tasks-dates.md] [status: active]
 #26 Tasks pagos v2 - prueba con unidad y cantidad (dia/semana/mes) en lugar de dias fijos, y ajustes del payload de pago [status: pending]
 #27 Notificaciones y recordatorios - switch de aviso con unidad (segundos/minutos/horas/dias) y cantidad, mas la variante de hora previa al inicio; requiere el sistema de notificaciones [status: pending]

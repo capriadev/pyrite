@@ -63,7 +63,8 @@ Migration 0009, additive except one index swap:
 - `TasksService`: create and update accept `groupId`, `sectorId` (or `sectorName` for the
   "otro" case), `priority`, `state`, `description` and `linkedExpectationId`. Each value is
   validated at the boundary: enum membership, uuid shape, and the linked expectation must
-  belong to the same task. Unassigning is an explicit `null`.
+  exist (it may belong to another task: that is exactly how "renovar el dominio" points at
+  the domain's payment). Unassigning is an explicit `null`.
 - The task list gains `group=<id>&includeDescendants=true`: the branch is resolved with a
   recursive CTE in the DAL, so the tree filter never walks the hierarchy inside the service.
 - Gateway: group CRUD with `parentId`, the tree read, the sectors read and the extended
@@ -108,8 +109,7 @@ GET    /tasks?group=<id>&includeDescendants=true
 - [ ] The sector list starts with the fixed set, "otro" creates a sector and the next form
       offers it without recreating it.
 - [ ] Priority and state accept `null` and only their enum values; anything else is 400.
-- [ ] `linkedExpectationId` accepts only an expectation of the same task; a foreign one is
-      400.
+- [ ] `linkedExpectationId` accepts an existing expectation and rejects an unknown id (400).
 - [ ] The calendar response for a range is byte-identical to the 015 behaviour (this spec
       changes nothing it reads).
 - [ ] `npm run tsc` and `npm run build` pass (strict).

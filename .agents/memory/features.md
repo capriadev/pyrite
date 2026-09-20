@@ -22,7 +22,6 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #12 Notes backend - notas con modo privado (seccion propia), busqueda por titulo/contenido, tabla groups unificada por dominio [spec: 010-notes-backend.md] [status: completed]
 #13 Logging system - pino + pino-roll, correlacion por reqId, redaccion de secretos, rotacion y retencion [spec: 011-logging-system.md] [status: completed]
 #17 Notes UI - carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con pin, busqueda titulo/contenido, filtros y modal de passphrase para privadas [status: pending]
-#19 Tasks organizacion - arbol de grupos con profundidad libre (parent_id en la tabla compartida), asignacion de la tarea, sector, prioridad, estado y vinculo a expectativa (la ficha de la tarea) [spec: 016-tasks-organization.md] [status: active]
 #20 Unify Calendar + Tasks + Finances - unificacion de los tres dominios [status: pending]
 #21 Finances error engine - motor de errores de finanzas con Calendar y Task [status: pending]
 #22 Logs purge - purge dedicado de logs (hoy purgeExpired() al arrancar; spec 011) [status: pending]

@@ -11,13 +11,13 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- feature/tasks-organization: spec 016 abierta (arbol de grupos, sector, prioridad, estado, descripcion y vinculo a expectativa); implementacion en curso.
+- feature/tasks-organization: spec 016 completa y verificada (arbol de grupos, sector, prioridad, estado, descripcion y vinculo a expectativa); 17 chequeos HTTP nuevos y sin regresion de la 015. Sin PR abierta.
 - Spec 015 (calendario backend) verificada y mergeada en main (PR #20): 21 aserciones del motor y 18 chequeos HTTP.
 - Pendientes del frente: 017 fechas y horarios (#25), 018 pagos v2 (#26), UI (#24), notificaciones (#27).
 - pyrite_test: migrada y sembrada; scripts de prueba en temp/live/*.mjs; instancia de prueba en 30101.
 
 ## Next up
-- Implementar la 016: migracion 0009 (con el swap de indices de la tabla compartida groups) y el humo contra pyrite_test.
+- Abrir la PR de feature/tasks-organization y encarar la 017 (puntual simple/rango/multiple, semanal con dias y horario por dia, switch 28/02 o 01/03).
 - Notes UI (features.md #17).
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 

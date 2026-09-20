@@ -1,4 +1,4 @@
-import type { Currency, TaskAggregate, TaskPriceTierRow } from '../../dal/tasks/tasks.repository';
+import type { Currency, TaskAggregate, TaskPriceTierRow, TaskRecurrenceRow } from '../../dal/tasks/tasks.repository';
 
 /**
  * The business-rule evaluation of the calendar (spec 015): given a task, its
@@ -13,6 +13,11 @@ export interface Occurrence {
   estimatedAmount: string | null;
   currency: Currency | null;
   tierPosition: number | null;
+  /** Hour of the occurrence (`HH:MM`), null when the entry carries no time. */
+  scheduledTime: string | null;
+  timeTo: string | null;
+  /** Free label of the entry: what the multiple punctual format uses. */
+  label: string | null;
 }
 
 /** How far ahead the future is materialized; a rolling window, extended per pass. */
@@ -42,11 +47,41 @@ export function addMonths(day: string, months: number): string {
   return isoDay(date);
 }
 
-function advance(day: string, unit: string, interval: number): string {
-  if (unit === 'day') return addDays(day, interval);
-  if (unit === 'week') return addDays(day, interval * 7);
-  if (unit === 'year') return addMonths(day, interval * 12);
-  return addMonths(day, interval);
+/** Monday of the week a day belongs to: the anchor "every N weeks" is measured from. */
+function weekStartOf(day: string): string {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  const weekday = date.getUTCDay();
+  return addDays(day, weekday === 0 ? -6 : 1 - weekday);
+}
+
+/**
+ * The anniversary of `first` after N years. When the day is February 29 and the target year
+ * has no such date, the rule decides: `feb28` stays in the month and `mar01` overflows to
+ * March (which is what the date arithmetic does by itself).
+ */
+function anniversary(first: string, years: number, mode: string): string {
+  const base = new Date(`${first}T00:00:00.000Z`);
+  const month = base.getUTCMonth();
+  const day = base.getUTCDate();
+  const candidate = new Date(Date.UTC(base.getUTCFullYear() + years, month, day));
+  if (candidate.getUTCMonth() === month) return isoDay(candidate);
+  if (mode === 'mar01') return isoDay(candidate);
+  const lastDay = new Date(Date.UTC(candidate.getUTCFullYear(), month + 1, 0)).getUTCDate();
+  return isoDay(new Date(Date.UTC(candidate.getUTCFullYear(), month, lastDay)));
+}
+
+/**
+ * Day of the nth step of a series. Annual goes through the anniversary so the leap-day rule
+ * applies, weekly advances whole weeks (the selected days are resolved by the caller) and
+ * the rest keep the plain unit arithmetic.
+ */
+function stepOf(first: string, recurrence: TaskRecurrenceRow, step: number): string {
+  if (recurrence.frequencyUnit === 'year') {
+    return anniversary(first, step * recurrence.interval, recurrence.leapDayMode);
+  }
+  if (recurrence.frequencyUnit === 'month') return addMonths(first, step * recurrence.interval);
+  if (recurrence.frequencyUnit === 'week') return addDays(first, step * recurrence.interval * 7);
+  return addDays(first, step * recurrence.interval);
 }
 
 /**
@@ -97,31 +132,133 @@ function firstChargeDay(aggregate: TaskAggregate): string {
   return task.startsOn;
 }
 
+/** Entry of the punctual format: a range (or a single day) plus its hour and label. */
+interface PunctualEntry {
+  from: string;
+  to: string;
+  time: string | null;
+  timeTo: string | null;
+  label: string | null;
+}
+
+function punctualEntries(aggregate: TaskAggregate): PunctualEntry[] {
+  const { task, dates } = aggregate;
+  if (dates.length === 0) {
+    return [{ from: task.startsOn, to: task.startsOn, time: null, timeTo: null, label: null }];
+  }
+  return dates.map((row) => ({
+    from: row.date,
+    to: row.dateTo ?? row.date,
+    time: row.time,
+    timeTo: row.timeTo,
+    label: row.label,
+  }));
+}
+
+/** A punctual task shows on every day its entries cover, each with its own metadata. */
+function punctualOccurrences(aggregate: TaskAggregate, from: string, to: string): Occurrence[] {
+  const occurrences: Occurrence[] = [];
+  for (const entry of punctualEntries(aggregate)) {
+    let day = entry.from;
+    while (day <= entry.to) {
+      if (day >= from && day <= to) {
+        occurrences.push({
+          expectedOn: day,
+          ...estimateAt(aggregate, 1),
+          scheduledTime: entry.time,
+          timeTo: entry.timeTo,
+          label: entry.label,
+        });
+      }
+      day = addDays(day, 1);
+    }
+  }
+  return occurrences.sort(byDate);
+}
+
 /**
- * Occurrences of a task inside [from, to]. A punctual task yields its single date;
- * a recurring one walks the series until it leaves the window or hits its end.
+ * A weekly rule with selected days: inside each week step it emits those days in ISO order.
+ * The step is anchored to the week of the first charge, so "every 2 weeks" is one week with
+ * the task and one without. A single hour among the days acts as the global one.
+ */
+function weeklyOccurrences(aggregate: TaskAggregate, from: string, to: string): Occurrence[] {
+  const { recurrence, weekdays } = aggregate;
+  if (!recurrence) return [];
+  const days = [...weekdays].sort((a, b) => a.weekday - b.weekday);
+  const globalTime = days.find((day) => day.time)?.time ?? null;
+  const globalTimeTo = days.find((day) => day.timeTo)?.timeTo ?? null;
+  const first = firstChargeDay(aggregate);
+  const limit = occurrenceLimit(aggregate);
+  const endsOn = recurrence.endsMode === 'on_date' ? recurrence.endsOn : null;
+  const occurrences: Occurrence[] = [];
+  let index = 0;
+
+  for (let week = 0; week <= MAX_OCCURRENCES_PER_PASS; week += 1) {
+    const start = addDays(weekStartOf(first), week * 7 * recurrence.interval);
+    if (start > to) break;
+    for (const day of days) {
+      const date = addDays(start, day.weekday - 1);
+      if (date < first) continue;
+      index += 1;
+      if (limit !== null && index > limit) return occurrences.sort(byDate);
+      if (endsOn && date > endsOn) return occurrences.sort(byDate);
+      if (date >= from && date <= to) {
+        occurrences.push({
+          expectedOn: date,
+          ...estimateAt(aggregate, index),
+          scheduledTime: day.time ?? globalTime,
+          timeTo: day.timeTo ?? globalTimeTo,
+          label: null,
+        });
+      }
+    }
+  }
+  return occurrences.sort(byDate);
+}
+
+/** Daily, monthly and annual series: one day per step, until an end condition fires. */
+function seriesOccurrences(aggregate: TaskAggregate, from: string, to: string): Occurrence[] {
+  const recurrence = aggregate.recurrence;
+  if (!recurrence) return [];
+  const first = firstChargeDay(aggregate);
+  const limit = occurrenceLimit(aggregate);
+  const endsOn = recurrence.endsMode === 'on_date' ? recurrence.endsOn : null;
+  const occurrences: Occurrence[] = [];
+
+  for (let index = 1; index <= MAX_OCCURRENCES_PER_PASS; index += 1) {
+    const cursor = stepOf(first, recurrence, index - 1);
+    if (cursor > to) break;
+    if (endsOn && cursor > endsOn) break;
+    if (limit !== null && index > limit) break;
+    if (cursor >= from) {
+      occurrences.push({
+        expectedOn: cursor,
+        ...estimateAt(aggregate, index),
+        scheduledTime: recurrence.time,
+        timeTo: recurrence.timeTo,
+        label: null,
+      });
+    }
+  }
+  return occurrences;
+}
+
+const byDate = (a: Occurrence, b: Occurrence): number => {
+  if (a.expectedOn < b.expectedOn) return -1;
+  return a.expectedOn > b.expectedOn ? 1 : 0;
+};
+
+/**
+ * Occurrences of a task inside [from, to]: a punctual task expands its dated entries, a
+ * weekly rule with selected days resolves them per week and the rest walk their series.
+ * The engine stays pure: no persistence, no DI and no clock.
  */
 export function occurrencesOf(aggregate: TaskAggregate, from: string, to: string): Occurrence[] {
   const { task, recurrence } = aggregate;
   if (task.status !== 'active') return [];
-
-  if (task.type === 'puntual' || !recurrence) {
-    if (task.startsOn < from || task.startsOn > to) return [];
-    return [{ expectedOn: task.startsOn, ...estimateAt(aggregate, 1) }];
+  if (task.type === 'puntual' || !recurrence) return punctualOccurrences(aggregate, from, to);
+  if (recurrence.frequencyUnit === 'week' && aggregate.weekdays.length > 0) {
+    return weeklyOccurrences(aggregate, from, to);
   }
-
-  const limit = occurrenceLimit(aggregate);
-  const endsOn = recurrence.endsMode === 'on_date' ? recurrence.endsOn : null;
-  const occurrences: Occurrence[] = [];
-  let cursor = firstChargeDay(aggregate);
-
-  for (let index = 1; index <= MAX_OCCURRENCES_PER_PASS; index += 1) {
-    if (cursor > to) break;
-    if (endsOn && cursor > endsOn) break;
-    if (limit !== null && index > limit) break;
-    if (cursor >= from) occurrences.push({ expectedOn: cursor, ...estimateAt(aggregate, index) });
-    cursor = advance(cursor, recurrence.frequencyUnit, recurrence.interval);
-  }
-
-  return occurrences;
+  return seriesOccurrences(aggregate, from, to);
 }

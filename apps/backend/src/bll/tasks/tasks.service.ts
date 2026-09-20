@@ -3,6 +3,7 @@ import {
   TasksRepository,
   type ExpectationInsert,
   type TaskAggregate,
+  type TaskDateRow,
   type TaskExpectationRow,
   type TaskListFilters,
   type TaskPatch,
@@ -10,6 +11,7 @@ import {
   type TaskPriceTierRow,
   type TaskRecurrenceRow,
   type TaskRow,
+  type TaskWeekdayRow,
 } from '../../dal/tasks/tasks.repository';
 import { TaskSectorsRepository, type TaskSectorRow } from '../../dal/tasks/task-sectors.repository';
 import { GroupsService } from '../groups/groups.service';
@@ -18,12 +20,15 @@ import { MATERIALIZATION_HORIZON_DAYS, addDays, isoDay, occurrencesOf } from './
 import {
   isCurrency,
   isFrequencyUnit,
+  isLeapDayMode,
   isPaymentMode,
   isRecurrenceEndMode,
   isTaskPriority,
   isTaskState,
   isTaskStatus,
   isTaskType,
+  isTimeOfDay,
+  type TaskDateInput,
   type TaskInput,
   type TaskListQuery,
   type TaskPaymentInput,
@@ -31,6 +36,7 @@ import {
   type TaskRecurrenceInput,
   type TaskState,
   type TaskTierInput,
+  type TaskWeekdayInput,
 } from './tasks-input';
 
 /** Domain of the group tree this service owns; other domains keep their own namespace. */
@@ -56,6 +62,10 @@ export interface TaskView {
   recurrence: TaskAggregate['recurrence'];
   payment: TaskAggregate['payment'];
   tiers: TaskAggregate['tiers'];
+  /** Dated entries of a punctual task (spec 017). */
+  dates: TaskDateRow[];
+  /** Selected weekdays of a weekly rule, with their own optional hours. */
+  weekdays: TaskWeekdayRow[];
 }
 
 export interface MaterializationResult {
@@ -114,10 +124,12 @@ export class TasksService {
   async create(input: TaskInput): Promise<TaskView> {
     const title = this.requireTitle(input.title);
     const type = this.requireType(input.type);
-    const startsOn = this.day(input.startsOn, 'startsOn');
+    const dates = this.dateRows(input.dates);
+    const startsOn = dates.length > 0 ? dates[0].date : this.day(input.startsOn, 'startsOn');
     const recurrence = this.rule(input, type);
     const payment = this.payload(input, type);
     const tiers = this.tierRows(input.tiers);
+    const weekdays = this.weekdayRows(input.recurrence?.weekdays);
 
     const task = await this.repo.create({
       title,
@@ -135,6 +147,8 @@ export class TasksService {
     if (recurrence) await this.repo.saveRecurrence(task.id, recurrence);
     if (payment) await this.repo.savePayment(task.id, payment);
     if (tiers.length > 0) await this.repo.replaceTiers(task.id, tiers);
+    if (dates.length > 0) await this.repo.replaceDates(task.id, dates);
+    if (weekdays.length > 0) await this.repo.replaceWeekdays(task.id, weekdays);
 
     await this.materialize(task.id);
     this.log.log('tarea creada', { taskId: task.id, type });
@@ -173,7 +187,9 @@ export class TasksService {
     if (input.linkedExpectationId !== undefined) {
       patch.linkedExpectationId = await this.resolveLink(input.linkedExpectationId);
     }
-    if (input.startsOn !== undefined) patch.startsOn = this.day(input.startsOn, 'startsOn');
+    const dates = input.dates === undefined ? null : this.dateRows(input.dates);
+    if (dates && dates.length > 0) patch.startsOn = dates[0].date;
+    else if (input.startsOn !== undefined) patch.startsOn = this.day(input.startsOn, 'startsOn');
     await this.repo.update(id, patch);
 
     if (input.recurrence !== undefined) {
@@ -185,6 +201,10 @@ export class TasksService {
       else await this.repo.savePayment(id, this.payloadFrom(input.payment));
     }
     if (input.tiers !== undefined) await this.repo.replaceTiers(id, this.tierRows(input.tiers));
+    if (dates) await this.repo.replaceDates(id, dates);
+    if (input.recurrence?.weekdays !== undefined) {
+      await this.repo.replaceWeekdays(id, this.weekdayRows(input.recurrence.weekdays));
+    }
 
     await this.repo.deleteExpectationsFrom(id, isoDay(new Date()));
     await this.materialize(id);
@@ -236,6 +256,9 @@ export class TasksService {
           estimatedAmount: occurrence.estimatedAmount,
           currency: occurrence.currency,
           tierPosition: occurrence.tierPosition,
+          scheduledTime: occurrence.scheduledTime,
+          timeTo: occurrence.timeTo,
+          label: occurrence.label,
         });
       }
     }
@@ -294,12 +317,17 @@ export class TasksService {
     if (!isFrequencyUnit(input.frequencyUnit)) throw new BadRequestException('invalid frequency unit');
     const endsMode = input.endsMode ?? 'never';
     if (!isRecurrenceEndMode(endsMode)) throw new BadRequestException('invalid end mode');
+    const leapDayMode = input.leapDayMode ?? 'feb28';
+    if (!isLeapDayMode(leapDayMode)) throw new BadRequestException('invalid leap day mode');
     return {
       frequencyUnit: input.frequencyUnit,
       interval: this.count(input.interval, 'interval', 1) ?? 1,
       endsMode,
       endsOn: endsMode === 'on_date' ? this.day(input.endsOn ?? undefined, 'endsOn') : null,
       occurrencesCount: endsMode === 'after_count' ? this.count(input.occurrencesCount, 'occurrencesCount', 1) : null,
+      leapDayMode,
+      time: this.timeOfDay(input.time, 'time'),
+      timeTo: this.timeOfDay(input.timeTo, 'timeTo'),
     };
   }
 
@@ -329,6 +357,52 @@ export class TasksService {
       trialDays: this.count(input.trialDays, 'trialDays', 0) ?? 0,
       installmentsCount,
     };
+  }
+
+  /** Dated entries of a punctual task: sorted by day, each with its optional metadata. */
+  private dateRows(rows: TaskDateInput[] | undefined): Array<Omit<TaskDateRow, 'taskId' | 'id'>> {
+    if (!rows || rows.length === 0) return [];
+    const entries = rows.map((row) => {
+      const date = this.day(row.date, 'date');
+      const dateTo = row.dateTo === undefined || row.dateTo === null ? null : this.day(row.dateTo, 'dateTo');
+      if (dateTo && dateTo < date) throw new BadRequestException('dateTo must not be before date');
+      return {
+        date,
+        dateTo,
+        time: this.timeOfDay(row.time, 'time'),
+        timeTo: this.timeOfDay(row.timeTo, 'timeTo'),
+        label: row.label ?? null,
+      };
+    });
+    if (new Set(entries.map((entry) => entry.date)).size !== entries.length) {
+      throw new BadRequestException('duplicated entry date');
+    }
+    return entries.sort((a, b) => (a.date < b.date ? -1 : 1));
+  }
+
+  /** Selected weekdays of a weekly rule: ISO numbering, one row per day, no repeats. */
+  private weekdayRows(rows: TaskWeekdayInput[] | undefined): Array<Omit<TaskWeekdayRow, 'taskId' | 'id'>> {
+    if (!rows || rows.length === 0) return [];
+    const entries = rows.map((row) => {
+      const weekday = this.count(row.weekday, 'weekday', 1);
+      if (weekday === null || weekday > 7) throw new BadRequestException('invalid weekday');
+      return {
+        weekday,
+        time: this.timeOfDay(row.time, 'time'),
+        timeTo: this.timeOfDay(row.timeTo, 'timeTo'),
+      };
+    });
+    if (new Set(entries.map((entry) => entry.weekday)).size !== entries.length) {
+      throw new BadRequestException('duplicated weekday');
+    }
+    return entries.sort((a, b) => a.weekday - b.weekday);
+  }
+
+  /** `HH:MM` or nothing: an hour is metadata of the entry, never a requirement. */
+  private timeOfDay(value: string | null | undefined, field: string): string | null {
+    if (value === undefined || value === null || value === '') return null;
+    if (!isTimeOfDay(value)) throw new BadRequestException(`invalid ${field}`);
+    return value;
   }
 
   /** Price tiers of a payment: positions are unique and define the hand-over order. */
@@ -452,6 +526,8 @@ export class TasksService {
       recurrence,
       payment,
       tiers,
+      dates: aggregate.dates,
+      weekdays: aggregate.weekdays,
     };
   }
 

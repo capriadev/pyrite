@@ -123,13 +123,18 @@ function occurrenceLimit(aggregate: TaskAggregate): number | null {
   return null;
 }
 
+/** Adds the trial in its own unit: weeks are seven days and a month is a calendar month. */
+function addTrial(day: string, count: number, unit: string): string {
+  if (unit === 'week') return addDays(day, count * 7);
+  if (unit === 'month') return addMonths(day, count);
+  return addDays(day, count);
+}
+
 /** First charge of a payment: the trial delays it, installments have no trial. */
 function firstChargeDay(aggregate: TaskAggregate): string {
   const { task, payment } = aggregate;
-  if (payment && payment.mode !== 'cuotas' && payment.trialDays > 0) {
-    return addDays(task.startsOn, payment.trialDays);
-  }
-  return task.startsOn;
+  if (!payment || payment.mode === 'cuotas' || payment.trialCount <= 0) return task.startsOn;
+  return addTrial(task.startsOn, payment.trialCount, payment.trialUnit);
 }
 
 /** Entry of the punctual format: a range (or a single day) plus its hour and label. */

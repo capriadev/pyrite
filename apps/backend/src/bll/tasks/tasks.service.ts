@@ -28,6 +28,7 @@ import {
   isTaskStatus,
   isTaskType,
   isTimeOfDay,
+  isTrialUnit,
   type TaskDateInput,
   type TaskInput,
   type TaskListQuery,
@@ -342,8 +343,13 @@ export class TasksService {
 
   private payloadFrom(input: TaskPaymentInput): Omit<TaskPaymentRow, 'taskId'> {
     if (!isPaymentMode(input.mode)) throw new BadRequestException('invalid payment mode');
+    if (input.trialDays !== undefined) {
+      throw new BadRequestException('trialDays is gone: use trialCount and trialUnit');
+    }
     const currency = input.priceCurrency ?? 'ARS';
     if (!isCurrency(currency)) throw new BadRequestException('invalid currency');
+    const trialUnit = input.trialUnit ?? 'day';
+    if (!isTrialUnit(trialUnit)) throw new BadRequestException('invalid trial unit');
     const priceFixed = input.priceFixed === true;
     const installmentsCount = input.mode === 'cuotas' ? this.count(input.installmentsCount, 'installmentsCount', 1) : null;
     if (input.mode === 'cuotas' && !installmentsCount) {
@@ -354,7 +360,8 @@ export class TasksService {
       priceFixed,
       priceAmount: priceFixed ? this.amount(input.priceAmount, 'priceAmount') : null,
       priceCurrency: currency,
-      trialDays: this.count(input.trialDays, 'trialDays', 0) ?? 0,
+      trialCount: this.count(input.trialCount, 'trialCount', 0) ?? 0,
+      trialUnit,
       installmentsCount,
     };
   }

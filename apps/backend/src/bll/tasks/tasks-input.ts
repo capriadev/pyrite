@@ -1,10 +1,11 @@
-import { currencyEnum, frequencyUnitEnum, leapDayModeEnum, paymentModeEnum, recurrenceEndModeEnum, taskPriorityEnum, taskStateEnum, taskStatusEnum, taskTypeEnum } from '../../../drizzle/schema';
+import { currencyEnum, frequencyUnitEnum, leapDayModeEnum, paymentModeEnum, recurrenceEndModeEnum, taskPriorityEnum, taskStateEnum, taskStatusEnum, taskTypeEnum, trialUnitEnum } from '../../../drizzle/schema';
 import type { Currency, TaskPaymentRow, TaskRecurrenceRow, TaskStatus, TaskType } from '../../dal/tasks/tasks.repository';
 
 /** Column enums derive from the schema, so a new value is one edit in one place. */
 export type TaskPriority = (typeof taskPriorityEnum.enumValues)[number];
 export type TaskState = (typeof taskStateEnum.enumValues)[number];
 export type LeapDayMode = (typeof leapDayModeEnum.enumValues)[number];
+export type TrialUnit = (typeof trialUnitEnum.enumValues)[number];
 
 /**
  * Input contract of the calendar/tasks API plus its boundary guards. Validation
@@ -62,15 +63,19 @@ export interface TaskTierInput {
 /**
  * Financial payload of a payment task. A price is optional on purpose: a variable
  * service (rent, utilities) is declared without one and finance fills the real
- * amount later, so the system never invents an estimate.
+ * amount later, so the system never invents an estimate. The trial is a quantity
+ * plus a unit, so a month of trial is a calendar month.
  */
 export interface TaskPaymentInput {
   mode: PaymentMode;
   priceFixed?: boolean;
   priceAmount?: string | null;
   priceCurrency?: Currency;
-  trialDays?: number;
+  trialCount?: number;
+  trialUnit?: TrialUnit;
   installmentsCount?: number | null;
+  /** @deprecated replaced by trialCount + trialUnit (spec 018): sending it answers 400. */
+  trialDays?: unknown;
 }
 
 export interface TaskInput {
@@ -146,6 +151,10 @@ export function isTaskState(value: string): value is TaskState {
 
 export function isLeapDayMode(value: string): value is LeapDayMode {
   return fromEnum<LeapDayMode>(leapDayModeEnum.enumValues, value);
+}
+
+export function isTrialUnit(value: string): value is TrialUnit {
+  return fromEnum<TrialUnit>(trialUnitEnum.enumValues, value);
 }
 
 /** `HH:MM` in 24 hours: the only time format this API accepts. */

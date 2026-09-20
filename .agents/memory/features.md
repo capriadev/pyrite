@@ -1,6 +1,6 @@
 # Features - SDD index | delete when complete | new ID = last_id + 1
 
-last_id: 23
+last_id: 24
 
 <!--
 One line per feature. Planned features may be registered here without a spec yet (status: pending); a spec is opened when the feature is planned and ready to develop. When a feature is COMPLETE: remove its line here and mark the spec status as completed. SPECS ARE NEVER DELETED - specs/ is a permanent registry, the numbering exists for that. Never reuse an ID; last_id only grows.
@@ -22,9 +22,9 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #12 Notes backend - notas con modo privado (seccion propia), busqueda por titulo/contenido, tabla groups unificada por dominio [spec: 010-notes-backend.md] [status: completed]
 #13 Logging system - pino + pino-roll, correlacion por reqId, redaccion de secretos, rotacion y retencion [spec: 011-logging-system.md] [status: completed]
 #17 Notes UI - carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con pin, busqueda titulo/contenido, filtros y modal de passphrase para privadas [status: pending]
-#18 Calendar - seccion Calendario: tasks como dueno unico de todo lo que tiene fecha, motor de recurrencia + BRE compartido, payload financiero opcional (precio fijo/variable, tramos, cuotas, prueba) y API de lectura por dia/mes [spec: 015-calendar-core.md] [status: active]
 #19 Tasks organizacion - capa de organizacion: carpetas, grupos (cumples, puntuales), tipos, vinculo task a expectativa, kanban opcional [status: pending]
 #20 Unify Calendar + Tasks + Finances - unificacion de los tres dominios [status: pending]
 #21 Finances error engine - motor de errores de finanzas con Calendar y Task [status: pending]
 #22 Logs purge - purge dedicado de logs (hoy purgeExpired() al arrancar; spec 011) [status: pending]
 #23 Credential rotation reminder - recordatorio de rotacion de credenciales (counts.stale_days sin consumidor; spec 012) [status: pending]
+#24 Calendario y Tasks UI - vista de calendario (mes/dia), pantalla de tasks (carpetas, grupos, kanban opcional) y accesos rapidos con plantillas desde calendar [status: pending]

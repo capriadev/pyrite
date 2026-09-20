@@ -29,5 +29,3 @@ _backups/
 backup.ps1
 backup.config.ps1
 backup.config.example.ps1
-
-.claudeignore

@@ -57,6 +57,13 @@
       "when": 1789442170909,
       "tag": "0007_cooing_roulette",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789864913479,
+      "tag": "0008_brave_magneto",
+      "breakpoints": true
     }
   ]
 }

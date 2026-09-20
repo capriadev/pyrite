@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
+  date,
   foreignKey,
   integer,
   jsonb,
@@ -289,4 +291,94 @@ export const rotationStaging = pgTable('rotation_staging', {
     name: 'rotation_staging_pk',
     columns: [t.jobId, t.targetTable, t.rowId],
   }),
+]);
+
+// ============================================================
+// Calendar / Tasks (spec 015)
+// ============================================================
+
+export const taskTypeEnum = pgEnum('task_type', ['puntual', 'recurrente', 'pago']);
+export const taskStatusEnum = pgEnum('task_status', ['active', 'paused', 'deleted']);
+export const frequencyUnitEnum = pgEnum('frequency_unit', ['day', 'week', 'month', 'year']);
+export const recurrenceEndModeEnum = pgEnum('recurrence_end_mode', ['never', 'on_date', 'after_count']);
+export const paymentModeEnum = pgEnum('payment_mode', ['recurrente', 'cuotas', 'fija']);
+export const expectationStatusEnum = pgEnum('expectation_status', ['pending', 'settled', 'exception', 'cancelled']);
+
+/**
+ * Everything with a date is a task: a punctual event, a recurring activity or a
+ * payment. Calendar owns no rows of its own - it reads and displays what tasks
+ * computes (spec 015). Dates, titles and estimates only: no secret lives here,
+ * so this domain has no crypto section and no passphrase gate.
+ */
+export const tasks = pgTable('tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  icon: text('icon'),
+  type: taskTypeEnum('type').notNull(),
+  status: taskStatusEnum('status').notNull().default('active'),
+  notes: text('notes'),
+  startsOn: date('starts_on').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One rule per recurring task: the frequency and how the series ends. */
+export const taskRecurrence = pgTable('task_recurrence', {
+  taskId: uuid('task_id').primaryKey().references(() => tasks.id, { onDelete: 'cascade' }),
+  frequencyUnit: frequencyUnitEnum('frequency_unit').notNull(),
+  interval: integer('interval').notNull().default(1),
+  endsMode: recurrenceEndModeEnum('ends_mode').notNull().default('never'),
+  endsOn: date('ends_on'),
+  occurrencesCount: integer('occurrences_count'),
+});
+
+/**
+ * Ordered price tiers of a payment task. The amount is an estimate for the
+ * preview, never an authority: finance (spec 005) holds the real amounts.
+ * `applies_from_occurrence` is the 1-based occurrence where the tier takes
+ * over, which is how a promo ($1000) becomes a regular price ($2500).
+ */
+export const taskPriceTiers = pgTable('task_price_tiers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull(),
+  amount: numeric('amount', { precision: 14, scale: 2 }),
+  currency: currencyEnum('currency').notNull().default('ARS'),
+  appliesFromOccurrence: integer('applies_from_occurrence').notNull().default(1),
+}, (t) => [
+  unique('task_price_tiers_task_position_key').on(t.taskId, t.position),
+]);
+
+/**
+ * Financial payload of a payment task: mode, the optional price (fixed or
+ * variable), the trial that delays the first charge and the installment count
+ * of a finite series. A price-less payment is a variable service (rent,
+ * utilities): its expectations carry dates only until finance fills them.
+ */
+export const taskPayments = pgTable('task_payments', {
+  taskId: uuid('task_id').primaryKey().references(() => tasks.id, { onDelete: 'cascade' }),
+  mode: paymentModeEnum('mode').notNull(),
+  priceFixed: boolean('price_fixed').notNull().default(false),
+  priceAmount: numeric('price_amount', { precision: 14, scale: 2 }),
+  priceCurrency: currencyEnum('price_currency').notNull().default('ARS'),
+  trialDays: integer('trial_days').notNull().default(0),
+  installmentsCount: integer('installments_count'),
+});
+
+/**
+ * Materialized expectations: the occurrences of a task with a stable id, so the
+ * reconciliation of 018 has something to point at. A payment without price
+ * leaves `estimated_amount` null on purpose: the system never invents a value.
+ */
+export const taskExpectations = pgTable('task_expectations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  expectedOn: date('expected_on').notNull(),
+  estimatedAmount: numeric('estimated_amount', { precision: 14, scale: 2 }),
+  currency: currencyEnum('currency'),
+  tierPosition: integer('tier_position'),
+  status: expectationStatusEnum('status').notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('task_expectations_task_date_key').on(t.taskId, t.expectedOn),
 ]);

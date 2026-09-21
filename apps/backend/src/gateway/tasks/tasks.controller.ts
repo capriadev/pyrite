@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { TasksService, type MaterializationResult, type TaskView } from '../../bll/tasks/tasks.service';
 import { GroupsService } from '../../bll/groups/groups.service';
+import { DisputesService } from '../../bll/disputes/disputes.service';
 import { type TaskInput, type TaskListQuery } from '../../bll/tasks/tasks-input';
 import type { GroupNode, GroupRow } from '../../dal/groups/groups.repository';
 import type { TaskExpectationRow } from '../../dal/tasks/tasks.repository';
@@ -19,6 +20,7 @@ export class TasksController {
   constructor(
     private readonly tasks: TasksService,
     private readonly groups: GroupsService,
+    private readonly disputes: DisputesService,
   ) {}
 
   @Get()
@@ -117,6 +119,18 @@ export class TasksController {
   @Get(':id/expectations')
   expectations(@Param('id') id: string): Promise<TaskExpectationRow[]> {
     return this.tasks.expectations(this.uuid(id));
+  }
+
+  // ============ DECLARED CATEGORIES (the gate of the dispute engine, spec 019) ============
+
+  @Get(':id/category-links')
+  categoryLinks(@Param('id') id: string): Promise<string[]> {
+    return this.disputes.categoryLinks(this.uuid(id));
+  }
+
+  @Put(':id/category-links')
+  setCategoryLinks(@Param('id') id: string, @Body() body: { categoryIds: string[] }): Promise<string[]> {
+    return this.disputes.setCategoryLinks(this.uuid(id), body?.categoryIds);
   }
 
   /** Guard applied before any id reaches SQL. */

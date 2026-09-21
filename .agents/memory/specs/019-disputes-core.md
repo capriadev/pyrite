@@ -31,7 +31,9 @@ own because its default posture is to consult.
   matcher over the dual tolerance window; consumption of a movement by a single expectation;
   reconciliation links with the measured deviation; disputes of type `missing`, `late` and
   `unplanned` with their manual resolution; the worker (boot, nightly, manual endpoint);
-  settings (`disputes.enabled`, the two tolerances) and the reversible `rebuild`.
+  settings (`disputes.enabled`, the two tolerances) and the reversible `rebuild`; and the
+  lookback of materialization, because without expectations of the recent past there is
+  nothing to reconcile (see the note in the approach).
 - Out of scope: the probabilistic scorer over metadata and history, percentage confidence
   and the auto-link threshold (spec 020); the creation of a task from a finances movement and
   the `finances/` system group (spec 021); notifications and the engine panel (UI, #24);
@@ -41,6 +43,13 @@ own because its default posture is to consult.
 ## Approach
 
 ### Migration 0012 (additive, no column dropped)
+
+**A gap found before writing code**: materialization rolled only forward from today, so a
+payment already due had no expectation to be compared against and the engine had nothing to
+reconcile. `MATERIALIZATION_LOOKBACK_DAYS = 90` was added to the recurrence engine and the
+window is now rolling on both sides: the recent past exists for the engine and the future for
+the calendar. `occurrencesOf` itself did not change; only the window that tasks.service asks
+for, which is why the pure assertions of the recurrence engine still hold.
 
 - `expectationStatusEnum` gains `suggestion`: an expectation whose cases are ambiguous waits
   for a human answer instead of being forced into a decision.
@@ -85,6 +94,13 @@ One pass per run, over every payment expectation whose status is `pending` and w
    candidate is recorded in `dispute_candidates` with the reason it was considered, and the
    answer is left to the manual endpoints. This is the default posture the design chose, so
    no confidence threshold is needed yet.
+5b. **A movement after the closed window but before the next charge of the same task** ->
+   the expectation is not reported as `missing`: the engine opens a `late` dispute naming
+   both sides, because the honest question is "did you pay this late?" and not "did you drop
+   the service?" (found while verifying: paying twelve days late is the real case the user
+   described, and a `missing` dispute had no answer for it). `paid_late` resolves it by
+   linking, and the window of the next charge is the ceiling: a movement beyond it belongs to
+   that next charge, not to this one.
 6. **A movement outside the window** reaches the expectation only through a manual link: the
    expectation settles and the link records the deviation, no dispute. Paying on day 12 is
    late, not missing.

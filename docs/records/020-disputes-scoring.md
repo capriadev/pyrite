@@ -40,6 +40,18 @@ The spec proposed `disputes.amount_tolerance_percent` as the home of the 15% rev
 of 019; it is implemented that way and read by both specs. The candidate swap (full replace of
 a consultation) was added as a repository operation because the scores change on every pass.
 
+## Debt noticed (for a later spec, not fixed here)
+
+`bll/disputes/disputes.service.ts` closed this spec at 776 lines. It is not tangled - the pass,
+the resolutions, the maintenance and the settings are separate sections - but the repo's own
+rule says a huge file is a design failure. The split that would pay off, when a spec is opened
+for it: the resolution flows and their validation helpers as their own module, and the settings
+surface as a third, leaving the service with the pass and the reads.
+
+Also worth noting: the settings endpoints live in the disputes controller while the history
+endpoint lives in tasks, which is fine but asymmetric; a single read surface for the engine
+panel (#24) may want them together.
+
 ## Not verified
 
 Live browser flow: the engine panel, the side notification of an automatic link and the

@@ -17,8 +17,9 @@ Update at session close. This is not a changelog: it is the state of the work.
 - Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 31 del scorer, 6 humos HTTP; README adentro).
 
 ## Next up
-- Mergear PR #24 (disputes core) y despues la del scoring.
+- Mergear PR #24 (disputes core) y despues la del scoring (PR #25, stackeada sobre la #24).
 - Spec 021 (intake desde finances + grupo finances/).
+- Spec de refactor: separar las resoluciones y los settings de disputes.service (776 lineas; registrado en docs/records/020).
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 
 ## Open decisions

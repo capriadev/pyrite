@@ -319,7 +319,7 @@ export const leapDayModeEnum = pgEnum('leap_day_mode', ['feb28', 'mar01']);
 export const paymentModeEnum = pgEnum('payment_mode', ['recurrente', 'cuotas', 'fija']);
 /** Unit of the free trial: a month is a calendar month, not thirty days. */
 export const trialUnitEnum = pgEnum('trial_unit', ['day', 'week', 'month']);
-export const expectationStatusEnum = pgEnum('expectation_status', ['pending', 'settled', 'exception', 'cancelled']);
+export const expectationStatusEnum = pgEnum('expectation_status', ['pending', 'settled', 'suggestion', 'exception', 'cancelled']);
 export const taskPriorityEnum = pgEnum('task_priority', ['baja', 'media', 'alta', 'critica']);
 export const taskStateEnum = pgEnum('task_state', ['pendiente', 'en_progreso', 'completado', 'cancelado']);
 
@@ -470,4 +470,96 @@ export const taskWeekdays = pgTable('task_weekdays', {
   timeTo: text('time_to'),
 }, (t) => [
   unique('task_weekdays_task_weekday_key').on(t.taskId, t.weekday),
+]);
+
+// ============================================================
+// Disputes (spec 019)
+// ============================================================
+
+export const disputeTypeEnum = pgEnum('dispute_type', ['missing', 'late', 'unplanned']);
+export const disputeStatusEnum = pgEnum('dispute_status', ['open', 'resolved']);
+export const disputeResolutionEnum = pgEnum('dispute_resolution', [
+  'cancelled',
+  'not_registered',
+  'paid_late',
+  'linked_manual',
+  'dismissed',
+]);
+/** How a link was decided: by the declared category or by a human. */
+export const linkSourceEnum = pgEnum('link_source', ['declared', 'manual']);
+
+/**
+ * The declared link between a payment task and the finances categories its charges land in.
+ * It is the hard gate of the matcher: without a declaration the engine does not guess.
+ */
+export const taskCategoryLinks = pgTable('task_category_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id')
+    .notNull()
+    .references(() => tasks.id, { onDelete: 'cascade' }),
+  categoryId: uuid('category_id')
+    .notNull()
+    .references(() => categories.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('task_category_links_task_category_key').on(t.taskId, t.categoryId),
+]);
+
+/**
+ * One expectation settled by one movement. Both sides are unique because the movement is
+ * consumed once (what stops a payment made ahead of time from being eaten twice) and the
+ * expectation settles once. `amount_deviation` is measured, never a gate: a big deviation
+ * lands in `review_note` for the human eye instead of invalidating the match.
+ */
+export const reconciliationLinks = pgTable('reconciliation_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  expectationId: uuid('expectation_id')
+    .notNull()
+    .references(() => taskExpectations.id, { onDelete: 'cascade' }),
+  movementId: uuid('movement_id')
+    .notNull()
+    .references(() => movements.id, { onDelete: 'cascade' }),
+  matchedBy: linkSourceEnum('matched_by').notNull().default('declared'),
+  amountDeviation: numeric('amount_deviation', { precision: 14, scale: 2 }),
+  reviewNote: text('review_note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('reconciliation_links_expectation_key').on(t.expectationId),
+  unique('reconciliation_links_movement_key').on(t.movementId),
+]);
+
+/**
+ * A persistent exception of the engine. `evidence` keeps the window that was used and the
+ * candidates that were seen, so a resolution later is auditable instead of a guess.
+ */
+export const disputes = pgTable('disputes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  type: disputeTypeEnum('type').notNull(),
+  taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
+  expectationId: uuid('expectation_id').references(() => taskExpectations.id, { onDelete: 'cascade' }),
+  movementId: uuid('movement_id').references(() => movements.id, { onDelete: 'cascade' }),
+  status: disputeStatusEnum('status').notNull().default('open'),
+  resolution: disputeResolutionEnum('resolution'),
+  resolutionNote: text('resolution_note'),
+  evidence: jsonb('evidence').$type<Record<string, unknown>>(),
+  detectedAt: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+});
+
+/**
+ * The candidates of a consultation, in the order the panel shows them. Spec 020 adds the
+ * score, the rank and the signals that sustained each one; here the reason is textual.
+ */
+export const disputeCandidates = pgTable('dispute_candidates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  expectationId: uuid('expectation_id')
+    .notNull()
+    .references(() => taskExpectations.id, { onDelete: 'cascade' }),
+  movementId: uuid('movement_id')
+    .notNull()
+    .references(() => movements.id, { onDelete: 'cascade' }),
+  reason: text('reason').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique('dispute_candidates_pair_key').on(t.expectationId, t.movementId),
 ]);

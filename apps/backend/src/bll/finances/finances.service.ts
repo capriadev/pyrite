@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { FinancesRepository } from '../../dal/finances/finances.repository';
 
 export interface NewMovementInput {
@@ -11,7 +11,8 @@ export interface NewMovementInput {
   categoryId: string;
   description: string;
   note?: string | null;
-  date?: Date;
+  /** A JSON client always sends a string; a Date is accepted for callers inside the app. */
+  date?: Date | string;
   platformId?: string | null;
 }
 
@@ -36,7 +37,7 @@ export class FinancesService {
       categoryId: input.categoryId,
       description: input.description,
       note: input.note ?? null,
-      date: input.date ?? new Date(),
+      date: this.movementDate(input.date),
       platformId: input.platformId ?? null,
     });
 
@@ -51,6 +52,17 @@ export class FinancesService {
 
   async listMovements() {
     return this.repo.findMovements();
+  }
+
+  /**
+   * The date of a movement is optional (now by default) but must be a real moment: a JSON
+   * client sends a string and a malformed one used to reach the driver, which answered a 500.
+   */
+  private movementDate(value: Date | string | undefined): Date {
+    if (value === undefined) return new Date();
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) throw new BadRequestException('invalid date');
+    return date;
   }
 
   async softDeleteMovement(id: string): Promise<void> {

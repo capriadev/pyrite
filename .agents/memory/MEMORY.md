@@ -11,15 +11,15 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- feature/tasks-payments-v2: spec 018 completa y verificada (prueba con unidad y cantidad); PR pendiente de abrir.
-- Frente Tasks backend cerrado: 015 + 016 + 017 + 018 mergeadas o en PR; quedan la UI (#24) y las notificaciones (#27).
-- Pendientes posteriores: motores de proyeccion y de conciliacion (specs nuevas, sin abrir).
-- Verificacion del backend: `apps/backend/test/` (34 aserciones del motor mas 4 humos HTTP, con README); `pyrite_test` migrada y sembrada, con los scripts de la 013 en temp/live/.
+- feature/disputes-core: spec 019 completa y verificada (22 aserciones del matcher, 38 chequeos HTTP); PR pendiente de abrir.
+- Specs 020 y 021 escritas como borradores sin commitear en specs/ (se commitean al iniciar cada una).
+- Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 5 humos HTTP; README adentro).
 
 ## Next up
-- Abrir la PR de feature/tasks-payments-v2.
-- Notes UI (features.md #17) o abrir el frente de los motores de proyeccion y conciliacion.
+- Abrir la PR de feature/disputes-core y mergearla.
+- Spec 020 (scoring probabilistico) y despues 021 (intake desde finances + grupo finances/).
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 
 ## Open decisions
 - satellite-services/ untracked: commitear o ignorar (local-only). Decidir al final.
+- Arbol duplicado D:\1__Programacion\1__programacion\ creado por error del editor: borrar (requiere confirmacion).

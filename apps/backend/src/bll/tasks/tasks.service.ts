@@ -16,7 +16,7 @@ import {
 import { TaskSectorsRepository, type TaskSectorRow } from '../../dal/tasks/task-sectors.repository';
 import { GroupsService } from '../groups/groups.service';
 import { isIsoDay, isUuid } from '../../types/guards';
-import { MATERIALIZATION_HORIZON_DAYS, addDays, isoDay, occurrencesOf } from './recurrence-engine';
+import { MATERIALIZATION_HORIZON_DAYS, MATERIALIZATION_LOOKBACK_DAYS, addDays, isoDay, occurrencesOf } from './recurrence-engine';
 import {
   isCurrency,
   isFrequencyUnit,
@@ -247,10 +247,13 @@ export class TasksService {
 
   private async writeExpectations(aggregates: TaskAggregate[]): Promise<number> {
     const today = isoDay(new Date());
+    // The window is rolling on both sides: the recent past exists so the engine can compare
+    // it against what finances recorded, and the future so the calendar can be read ahead.
+    const from = addDays(today, -MATERIALIZATION_LOOKBACK_DAYS);
     const horizon = addDays(today, MATERIALIZATION_HORIZON_DAYS);
     const rows: ExpectationInsert[] = [];
     for (const aggregate of aggregates) {
-      for (const occurrence of occurrencesOf(aggregate, today, horizon)) {
+      for (const occurrence of occurrencesOf(aggregate, from, horizon)) {
         rows.push({
           taskId: aggregate.task.id,
           expectedOn: occurrence.expectedOn,

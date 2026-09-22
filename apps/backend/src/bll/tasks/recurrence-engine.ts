@@ -23,6 +23,15 @@ export interface Occurrence {
 /** How far ahead the future is materialized; a rolling window, extended per pass. */
 export const MATERIALIZATION_HORIZON_DAYS = 365;
 
+/**
+ * How far back the recent past is materialized. Without it a task created after its first
+ * charge existed only from today onward, so a payment that was already due could never be
+ * reconciled (spec 019 needs the past to exist to compare it against finances). Ninety days
+ * covers a quarter of unbilled history and keeps the window a rolling one, exactly like the
+ * horizon on the other side.
+ */
+export const MATERIALIZATION_LOOKBACK_DAYS = 90;
+
 /** Guard against a malformed rule turning the walk into an infinite loop. */
 const MAX_OCCURRENCES_PER_PASS = 1000;
 

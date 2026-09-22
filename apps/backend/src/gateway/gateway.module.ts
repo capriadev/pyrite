@@ -8,12 +8,13 @@ import { NotesController } from './notes/notes.controller';
 import { CountsController } from './counts/counts.controller';
 import { TasksController } from './tasks/tasks.controller';
 import { CalendarController } from './calendar/calendar.controller';
+import { DisputesController } from './disputes/disputes.controller';
 import { AuthModule } from './auth/auth.module';
 import { ServicesModule } from '../services/services.module';
 import { BllModule } from '../bll/bll.module';
 
 @Module({
   imports: [ServicesModule, BllModule, AuthModule],
-  controllers: [HealthController, SettingsController, FinancesController, RatesController, ApiKeysController, NotesController, CountsController, TasksController, CalendarController],
+  controllers: [HealthController, SettingsController, FinancesController, RatesController, ApiKeysController, NotesController, CountsController, TasksController, CalendarController, DisputesController],
 })
 export class GatewayModule {}

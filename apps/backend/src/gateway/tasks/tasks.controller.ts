@@ -133,6 +133,12 @@ export class TasksController {
     return this.disputes.setCategoryLinks(this.uuid(id), body?.categoryIds);
   }
 
+  /** What the engine learned about this task: average delay, samples, last amounts (spec 020). */
+  @Get(':id/match-history')
+  matchHistory(@Param('id') id: string) {
+    return this.disputes.matchHistory(this.uuid(id));
+  }
+
   /** Guard applied before any id reaches SQL. */
   private uuid(value: string): string {
     if (!isUuid(value)) throw new BadRequestException('invalid id');

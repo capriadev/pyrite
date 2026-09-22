@@ -21,7 +21,28 @@ import {
   type MatcherExpectation,
   type MatcherMovement,
 } from './dispute-matcher';
-import { matcherConfig } from './dispute-settings';
+import {
+  EMPTY_HISTORY,
+  decideWithScores,
+  dayDistance,
+  rankCandidates,
+  type MatchHistory,
+  type ScoredCandidate,
+} from './dispute-scorer';
+import {
+  AUTO_LINK_KEY,
+  AUTO_LINK_MARGIN_KEY,
+  AUTO_LINK_MIN_SCORE_KEY,
+  DISPUTES_ENABLED_KEY,
+  REVIEW_THRESHOLD_KEY,
+  SUGGESTION_AGE_KEY,
+  TOLERANCE_AFTER_KEY,
+  TOLERANCE_BEFORE_KEY,
+  autoLinkConfig,
+  disputesEnabled,
+  matcherConfig,
+  suggestionAgeDays,
+} from './dispute-settings';
 
 /** What one pass of the engine did, logged and returned by the manual run. */
 export interface RunResult {
@@ -31,7 +52,21 @@ export interface RunResult {
   missing: number;
   late: number;
   unplanned: number;
+  /** Consultations that aged out unanswered and became missing (spec 020). */
+  aged: number;
   skipped: number;
+}
+
+/** Effective values of the engine settings, as the panel shows them. */
+export interface EngineSettings {
+  enabled: boolean;
+  toleranceBefore: number;
+  toleranceAfter: number;
+  reviewThresholdPercent: number;
+  autoLink: boolean;
+  autoLinkMinScore: number;
+  autoLinkMargin: number;
+  suggestionAgeDays: number;
 }
 
 /** A dispute as the API returns it. */
@@ -68,10 +103,7 @@ export class DisputesService {
 
   /** Manual and scheduled runs share this gate: a parked engine runs nothing. */
   private requireEnabled(): void {
-    const enabled = this.settings.get('disputes.enabled');
-    if (enabled === false || enabled === 'false') {
-      throw new ConflictException('disputes engine is disabled');
-    }
+    if (!disputesEnabled(this.settings)) throw new ConflictException('disputes engine is disabled');
   }
 
   // ============ THE PASS ============
@@ -92,6 +124,7 @@ export class DisputesService {
       missing: 0,
       late: 0,
       unplanned: 0,
+      aged: 0,
       skipped: 0,
     };
 
@@ -105,11 +138,16 @@ export class DisputesService {
       return result;
     }
 
+    result.aged = await this.ageConsultations(day, suggestionAgeDays(this.settings), config);
+
     const expectations = await this.repo.listPendingPaymentExpectations(day);
     result.expectations = expectations.length;
     const consumed = new Set(await this.repo.listLinkedMovementIds());
     const declaredCategoryIds = [...new Set(declarations.map((row) => row.categoryId))];
-    const movements = await this.movementsFor(expectations, categoriesByTask, declaredCategoryIds, config);
+    const movementRows = await this.movementsFor(expectations, categoriesByTask, declaredCategoryIds, config);
+    const movements = movementRows.map((row) => movementOf(row));
+    const historyByTask = await this.historyFor(expectations);
+    const autoLink = autoLinkConfig(this.settings);
     const claimed = new Set<string>();
     const waiting = await this.repo.listExpectationsByTaskIds([...categoriesByTask.keys()]);
 
@@ -136,17 +174,31 @@ export class DisputesService {
           decision.amountDeviation === null ? null : String(decision.amountDeviation),
           decision.reviewNote,
         );
+        // The engine learns from its own link: one more sample of how this task pays.
+        await this.learn(expectation, movementRows, decision.movementId, 'declared');
         consumed.add(decision.movementId);
         result.settled += 1;
         continue;
       }
 
       if (decision.kind === 'suggest') {
-        await this.repo.insertCandidates(
-          decision.movementIds.map((movementId) => ({
-            expectationId: expectation.id,
-            movementId,
-            reason: 'declared category inside the tolerance window',
+        const ranked = this.rank(expectation, decision.movementIds, movementRows, historyByTask.get(expectation.taskId));
+        const scored = decideWithScores(ranked, autoLink);
+        if (scored.kind === 'auto-link') {
+          await this.repo.createLink(expectation.id, scored.candidate.movementId, 'declared', null, null);
+          await this.learn(expectation, movementRows, scored.candidate.movementId, 'declared');
+          consumed.add(scored.candidate.movementId);
+          result.settled += 1;
+          continue;
+        }
+        await this.repo.replaceCandidates(
+          expectation.id,
+          scored.candidates.map((candidate) => ({
+            movementId: candidate.movementId,
+            reason: `score ${candidate.score}`,
+            score: Math.round(candidate.score),
+            rank: candidate.rank ?? null,
+            signals: candidate.signals,
           })),
         );
         await this.repo.updateExpectationStatus(expectation.id, 'suggestion');
@@ -183,7 +235,7 @@ export class DisputesService {
     this.log.log(
       `Run: ${result.expectations} expectations, ${result.settled} settled, ` +
         `${result.consultations} consultations, ${result.missing} missing, ${result.late} late, ` +
-        `${result.unplanned} unplanned`,
+        `${result.unplanned} unplanned, ${result.aged} aged out`,
     );
     return result;
   }
@@ -231,15 +283,98 @@ export class DisputesService {
     categoriesByTask: Map<string, string[]>,
     declaredCategoryIds: string[],
     config: MatcherConfig,
-  ): Promise<MatcherMovement[]> {
+  ): Promise<MovementRow[]> {
     const windows = expectations
       .filter((expectation) => categoriesByTask.has(expectation.taskId))
       .map((expectation) => windowOf(expectation.expectedOn, config));
     if (windows.length === 0) return [];
     const from = windows.map((window) => window.from).sort()[0];
     const to = windows.map((window) => window.to).sort().at(-1) as string;
-    const rows = await this.repo.listMovementsInWindow(declaredCategoryIds, from, to);
-    return rows.map((row) => movementOf(row));
+    return this.repo.listMovementsInWindow(declaredCategoryIds, from, to);
+  }
+
+  /** The learned history of the tasks of this pass, keyed by task id. */
+  private async historyFor(expectations: Array<ExpectationRow & { taskTitle: string }>): Promise<Map<string, MatchHistory>> {
+    const taskIds = [...new Set(expectations.map((expectation) => expectation.taskId))];
+    const rows = await this.repo.listMatchHistory(taskIds);
+    return new Map(
+      rows.map((row) => [
+        row.taskId,
+        {
+          averageDelayDays: Number(row.averageDelayDays),
+          sampleCount: row.sampleCount,
+          lastAmounts: row.lastAmounts ?? [],
+        },
+      ]),
+    );
+  }
+
+  /** Scores and ranks the candidates of one consultation with everything known about the task. */
+  private rank(
+    expectation: ExpectationRow & { taskTitle: string; taskDescription: string | null; taskNotes: string | null; taskSectorName: string | null },
+    movementIds: string[],
+    movementRows: MovementRow[],
+    history: MatchHistory | undefined,
+  ): ScoredCandidate[] {
+    const movements = movementRows
+      .filter((row) => movementIds.includes(row.id))
+      .map((row) => ({
+        id: row.id,
+        description: row.description,
+        note: row.note,
+        amount: Number(row.amount),
+        date: row.date.toISOString().slice(0, 10),
+      }));
+    return rankCandidates(
+      movements,
+      {
+        title: expectation.taskTitle,
+        description: expectation.taskDescription,
+        notes: expectation.taskNotes,
+        sectorName: expectation.taskSectorName,
+      },
+      expectation.estimatedAmount === null ? null : Number(expectation.estimatedAmount),
+      expectation.expectedOn,
+      history ?? EMPTY_HISTORY,
+    );
+  }
+
+  /** Records one confirmed link in the history of the task: what makes the next pass smarter. */
+  private async learn(
+    expectation: ExpectationRow,
+    movementRows: MovementRow[],
+    movementId: string,
+    matchedBy: 'declared' | 'manual',
+  ): Promise<void> {
+    const movement = movementRows.find((row) => row.id === movementId);
+    if (!movement) return;
+    const date = movement.date.toISOString().slice(0, 10);
+    await this.repo.recordMatch(
+      expectation.taskId,
+      deviationDays(expectation.expectedOn, date),
+      Number(movement.amount),
+      matchedBy === 'manual' ? 2 : 1,
+    );
+  }
+
+  /**
+   * A consultation nobody answered ages out: it is not a suggestion forever. Falling to a
+   * missing dispute is the honest reading - nobody confirmed it and no link exists.
+   */
+  private async ageConsultations(day: string, ageDays: number, config: MatcherConfig): Promise<number> {
+    const suggestions = await this.repo.listConstrainedExpectations('suggestion');
+    let aged = 0;
+    for (const expectation of suggestions) {
+      const oldest = await this.repo.oldestCandidateAt(expectation.id);
+      if (!oldest) continue;
+      if (dayDistance(day, oldest.toISOString().slice(0, 10)) < ageDays) continue;
+      await this.repo.deleteCandidatesForExpectation(expectation.id);
+      await this.repo.updateExpectationStatus(expectation.id, 'pending');
+      await this.openMissing(expectation, config);
+      aged += 1;
+    }
+    if (aged > 0) this.log.log(`Run: ${aged} consultation(s) aged out to missing`);
+    return aged;
   }
 
   /** A window that closed with nothing in it: the payment never showed up. */
@@ -385,10 +520,11 @@ export class DisputesService {
     return this.toView(updated);
   }
 
-  /** Answer to a consultation: pick the movement, or say none of them belongs here. */
+  /** Answer to a consultation: pick the movement (or the candidate), or say none belongs here. */
   async decideSuggestion(
     expectationId: string,
     movementId: string | null,
+    candidateId?: string | null,
   ): Promise<{ expectationId: string; status: ExpectationRow['status'] }> {
     const id = this.requireUuid(expectationId, 'expectation id');
     const expectation = await this.repo.findExpectation(id);
@@ -396,8 +532,18 @@ export class DisputesService {
     if (expectation.status !== 'suggestion') throw new BadRequestException('expectation is not waiting for an answer');
     const config = matcherConfig(this.settings);
 
-    if (movementId) {
-      await this.link(id, this.requireUuid(movementId, 'movement id'));
+    // The panel answers with the candidate it showed; the id of the movement works too.
+    let chosen = movementId;
+    if (!chosen && candidateId) {
+      const candidates = await this.repo.listCandidates(id);
+      const candidate = candidates.find((row) => row.id === this.requireUuid(candidateId, 'candidate id'));
+      if (!candidate) throw new NotFoundException('candidate not found');
+      chosen = candidate.movementId;
+    }
+
+    if (chosen) {
+      await this.link(id, this.requireUuid(chosen, 'movement id'));
+      await this.repo.deleteCandidatesForExpectation(id);
       return { expectationId: id, status: 'settled' };
     }
 
@@ -425,6 +571,89 @@ export class DisputesService {
       throw new BadRequestException('movement is already linked to another expectation');
     }
     await this.repo.createLink(expectationId, movementId, 'manual', null, null);
+    // A human answer is the strongest signal available: it weighs double in the history.
+    await this.repo.recordMatch(
+      expectation.taskId,
+      deviationDays(expectation.expectedOn, movement.date.toISOString().slice(0, 10)),
+      Number(movement.amount),
+      2,
+    );
+  }
+
+  /** What the engine learned about one task id: the panel shows it beside the task. */
+  async matchHistory(taskId: string): Promise<MatchHistory & { taskId: string; lastMatchedAt: Date | null }> {
+    const id = this.requireUuid(taskId, 'task id');
+    const task = await this.repo.findTask(id);
+    if (!task) throw new NotFoundException('task not found');
+    const row = await this.repo.findMatchHistory(id);
+    if (!row) return { taskId: id, ...EMPTY_HISTORY, lastMatchedAt: null };
+    return {
+      taskId: id,
+      averageDelayDays: Number(row.averageDelayDays),
+      sampleCount: row.sampleCount,
+      lastAmounts: row.lastAmounts ?? [],
+      lastMatchedAt: row.lastMatchedAt,
+    };
+  }
+
+  /** Effective settings of the engine: what the settings screen shows and edits. */
+  engineSettings(): EngineSettings {
+    const matcher = matcherConfig(this.settings);
+    const auto = autoLinkConfig(this.settings);
+    return {
+      enabled: disputesEnabled(this.settings),
+      toleranceBefore: matcher.toleranceBefore,
+      toleranceAfter: matcher.toleranceAfter,
+      reviewThresholdPercent: matcher.reviewThresholdPercent,
+      autoLink: auto.enabled,
+      autoLinkMinScore: auto.minScore,
+      autoLinkMargin: auto.margin,
+      suggestionAgeDays: suggestionAgeDays(this.settings),
+    };
+  }
+
+  /**
+   * Patches the engine settings. Only the keys present change, and every value is validated
+   * here so a bad one never reaches a run: a tolerance of -1 would silently break the windows.
+   */
+  async updateEngineSettings(patch: Record<string, unknown>): Promise<EngineSettings> {
+    const writes: Array<[string, unknown]> = [];
+    if (patch.enabled !== undefined) writes.push([DISPUTES_ENABLED_KEY, this.boolean(patch.enabled, 'enabled')]);
+    if (patch.autoLink !== undefined) writes.push([AUTO_LINK_KEY, this.boolean(patch.autoLink, 'autoLink')]);
+    if (patch.toleranceBefore !== undefined) {
+      writes.push([TOLERANCE_BEFORE_KEY, this.counter(patch.toleranceBefore, 'toleranceBefore')]);
+    }
+    if (patch.toleranceAfter !== undefined) {
+      writes.push([TOLERANCE_AFTER_KEY, this.counter(patch.toleranceAfter, 'toleranceAfter')]);
+    }
+    if (patch.reviewThresholdPercent !== undefined) {
+      writes.push([REVIEW_THRESHOLD_KEY, this.counter(patch.reviewThresholdPercent, 'reviewThresholdPercent', 100)]);
+    }
+    if (patch.autoLinkMinScore !== undefined) {
+      writes.push([AUTO_LINK_MIN_SCORE_KEY, this.counter(patch.autoLinkMinScore, 'autoLinkMinScore', 100)]);
+    }
+    if (patch.autoLinkMargin !== undefined) {
+      writes.push([AUTO_LINK_MARGIN_KEY, this.counter(patch.autoLinkMargin, 'autoLinkMargin', 100)]);
+    }
+    if (patch.suggestionAgeDays !== undefined) {
+      writes.push([SUGGESTION_AGE_KEY, this.counter(patch.suggestionAgeDays, 'suggestionAgeDays', 365)]);
+    }
+    for (const [key, value] of writes) await this.settings.set(key, value);
+    return this.engineSettings();
+  }
+
+  private boolean(value: unknown, label: string): boolean {
+    if (value === true || value === 'true') return true;
+    if (value === false || value === 'false') return false;
+    throw new BadRequestException(`${label} must be a boolean`);
+  }
+
+  private counter(value: unknown, label: string, max = 365): number {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > max) {
+      throw new BadRequestException(`${label} must be an integer between 0 and ${max}`);
+    }
+    return parsed;
   }
 
   /** The link of one expectation, with the movement it points at: what the panel shows. */

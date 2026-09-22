@@ -128,6 +128,23 @@ function reviewNoteOf(deviation: number | null, config: MatcherConfig): string |
 }
 
 /**
+ * What a link records about the money: the signed deviation and, when it is over the threshold,
+ * the review note. Exported because the intake (spec 021) links a movement the moment it is
+ * saved, and that path must measure exactly what the matcher measures.
+ */
+export function linkReview(
+  estimatedAmount: number | null,
+  amount: number,
+  config: MatcherConfig = DEFAULT_MATCHER_CONFIG,
+): { amountDeviation: number | null; reviewNote: string | null } {
+  const deviation = amountDeviation(estimatedAmount, amount);
+  return {
+    amountDeviation: deviation === null ? null : Number(deviation.toFixed(2)),
+    reviewNote: reviewNoteOf(deviation, config),
+  };
+}
+
+/**
  * Movements nobody expects: in a declared category, not consumed, and outside the window of
  * every expectation that is still waiting for its money. A movement covered by a window whose
  * expectation is already settled is a double charge, and it belongs here too.

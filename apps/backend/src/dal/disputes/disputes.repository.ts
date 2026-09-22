@@ -4,7 +4,9 @@ import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
 import {
   categories,
   disputeCandidates,
+  disputeIntakeDismissals,
   disputes,
+  groups,
   movements,
   reconciliationLinks,
   taskCategoryLinks,
@@ -73,6 +75,47 @@ export class DisputesRepository {
       .from(categories)
       .where(inArray(categories.id, ids));
     return rows.map((row) => row.id);
+  }
+
+  /** The category with its service marker: what the intake reads before asking anything. */
+  async findCategory(id: string): Promise<typeof categories.$inferSelect | undefined> {
+    const rows = await this.db.select().from(categories).where(eq(categories.id, id)).limit(1);
+    return rows[0];
+  }
+
+  /** Which payment tasks declare this category: the first gate of the intake (spec 021). */
+  async taskIdsDeclaringCategory(categoryId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ taskId: taskCategoryLinks.taskId })
+      .from(taskCategoryLinks)
+      .where(eq(taskCategoryLinks.categoryId, categoryId));
+    return [...new Set(rows.map((row) => row.taskId))];
+  }
+
+  // ============ INTAKE DISMISSALS ============
+
+  async isDismissed(movementId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ movementId: disputeIntakeDismissals.movementId })
+      .from(disputeIntakeDismissals)
+      .where(eq(disputeIntakeDismissals.movementId, movementId))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  /** Remembering the dismissal is what stops the same question from being asked twice. */
+  async insertDismissal(movementId: string): Promise<void> {
+    await this.db.insert(disputeIntakeDismissals).values({ movementId }).onConflictDoNothing();
+  }
+
+  async isSystemGroup(id: string): Promise<boolean> {
+    const rows = await this.db.select({ isSystem: groups.isSystem }).from(groups).where(eq(groups.id, id)).limit(1);
+    return rows[0]?.isSystem === true;
+  }
+
+  async groupExists(id: string): Promise<boolean> {
+    const rows = await this.db.select({ id: groups.id }).from(groups).where(eq(groups.id, id)).limit(1);
+    return rows.length > 0;
   }
 
   // ============ EXPECTATIONS AND MOVEMENTS ============

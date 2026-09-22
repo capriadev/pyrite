@@ -33,9 +33,28 @@ export class FinancesRepository {
 
   // ======== categories ========
 
-  async createCategory(name: string, type: 'income' | 'expense'): Promise<typeof categories.$inferSelect> {
-    const inserted = await this.db.insert(categories).values({ name, type }).returning();
+  async createCategory(
+    name: string,
+    type: 'income' | 'expense',
+    isService = false,
+  ): Promise<typeof categories.$inferSelect> {
+    const inserted = await this.db.insert(categories).values({ name, type, isService }).returning();
     return inserted[0];
+  }
+
+  async findCategory(id: string): Promise<typeof categories.$inferSelect | undefined> {
+    const rows = await this.db.select().from(categories).where(eq(categories.id, id)).limit(1);
+    return rows[0];
+  }
+
+  /** Marks (or unmarks) a category as the place where services and subscriptions land. */
+  async setCategoryService(id: string, isService: boolean): Promise<typeof categories.$inferSelect | undefined> {
+    const rows = await this.db
+      .update(categories)
+      .set({ isService })
+      .where(eq(categories.id, id))
+      .returning();
+    return rows[0];
   }
 
   async findCategories(): Promise<Array<typeof categories.$inferSelect>> {

@@ -62,7 +62,7 @@ const movement = (categoryId, description, amount, date, note) =>
     balanceSource: 'digital_usd', categoryId, description, note: note ?? null, date,
   });
 
-/** Un pago mensual con su propia categoria declarada, aislado de los demas casos. */
+/** Un pago mensual con su propia categoria, sin declarar: cada caso decide cuando declararla. */
 async function paidTask(title, startsOn, categoryName) {
   const cat = await category(categoryName);
   const task = await request('POST', '/tasks', {
@@ -72,9 +72,10 @@ async function paidTask(title, startsOn, categoryName) {
     recurrence: monthly,
     payment: { mode: 'recurrente', priceFixed: true, priceAmount: '20.00', priceCurrency: 'USD' },
   });
-  await request('PUT', `/tasks/${task.body.id}/category-links`, { categoryIds: [cat.id] });
   return { taskId: task.body.id, categoryId: cat.id };
 }
+
+const declare = (taskId, categoryId) => request('PUT', `/tasks/${taskId}/category-links`, { categoryIds: [categoryId] });
 
 const firstExpectation = async (taskId) => ((await request('GET', `/tasks/${taskId}/expectations`)).body ?? [])[0];
 const run = () => request('POST', '/disputes/run');
@@ -109,6 +110,9 @@ try {
   const t1 = await paidTask(`Netflix ${stamp}`, day(-1), `scoring-t1-${stamp}`);
   await movement(t1.categoryId, `NETFLIX.COM ${stamp}`, 20, new Date(`${day(-1)}T09:00:00Z`));
   await movement(t1.categoryId, `spotify premium ${stamp}`, 12, new Date(`${day(0)}T09:00:00Z`));
+  // La categoria se declara despues de los movimientos: el intake vincula al guardar y este
+  // caso necesita la duda del motor, con sus dos candidatos y sus puntajes.
+  await declare(t1.taskId, t1.categoryId);
   await run();
   const t1First = await firstExpectation(t1.taskId);
   const t1Candidates = await candidatesOf(t1First.id);
@@ -131,6 +135,7 @@ try {
   const t2 = await paidTask(`Netflix dos ${stamp}`, day(-3), `scoring-t2-${stamp}`);
   await movement(t2.categoryId, `NETFLIX.COM ${stamp}`, 20, new Date(`${day(-1)}T09:00:00Z`));
   await movement(t2.categoryId, `spotify premium ${stamp}`, 12, new Date(`${day(0)}T09:00:00Z`));
+  await declare(t2.taskId, t2.categoryId);
   await run();
   const t2First = await firstExpectation(t2.taskId);
   check(t2First.status === 'settled', 'con ventaja suficiente el motor vincula solo', `${t2First.status}`);
@@ -144,6 +149,7 @@ try {
   const t3 = await paidTask(`Spotify ${stamp}`, day(-1), `scoring-t3-${stamp}`);
   await movement(t3.categoryId, `spotify premium uno ${stamp}`, 20, new Date(`${day(-1)}T09:00:00Z`));
   await movement(t3.categoryId, `spotify premium dos ${stamp}`, 20, new Date(`${day(0)}T09:00:00Z`));
+  await declare(t3.taskId, t3.categoryId);
   await run();
   const t3First = await firstExpectation(t3.taskId);
   const t3Candidates = await candidatesOf(t3First.id);
@@ -171,6 +177,7 @@ try {
   const t4 = await paidTask(`Netflix tres ${stamp}`, day(-1), `scoring-t4-${stamp}`);
   await movement(t4.categoryId, `NETFLIX.COM ${stamp}`, 20, new Date(`${day(-1)}T09:00:00Z`));
   await movement(t4.categoryId, `servicio sin relacion ${stamp}`, 19, new Date(`${day(0)}T09:00:00Z`));
+  await declare(t4.taskId, t4.categoryId);
   await run();
   const t4First = await firstExpectation(t4.taskId);
   check(t4First.status === 'suggestion', 'con margen exigente la duda se consulta', `${t4First.status}`);

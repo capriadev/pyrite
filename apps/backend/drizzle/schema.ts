@@ -47,6 +47,11 @@ export const categories = pgTable('categories', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   type: movementTypeEnum('type').notNull(),
+  /**
+   * Marks a category where services and subscriptions land. It is what turns the intake
+   * question on for it (spec 021): without the marker a plain purchase is never asked about.
+   */
+  isService: boolean('is_service').notNull().default(false),
   status: movementStatusEnum('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -239,6 +244,8 @@ export const groups = pgTable('groups', {
   domain: text('domain').notNull(),
   parentId: uuid('parent_id').references((): AnyPgColumn => groups.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
+  /** Created by the code (spec 021): a system node is never renamed or deleted by hand. */
+  isSystem: boolean('is_system').notNull().default(false),
   status: movementStatusEnum('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -588,4 +595,15 @@ export const taskMatchHistory = pgTable('task_match_history', {
   lastAmounts: jsonb('last_amounts').$type<number[]>().notNull().default([]),
   lastMatchedAt: timestamp('last_matched_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Movements whose intake question was dismissed (spec 021): remembering them is what stops the
+ * same question from being asked twice, and the movement stays linkable by hand.
+ */
+export const disputeIntakeDismissals = pgTable('dispute_intake_dismissals', {
+  movementId: uuid('movement_id')
+    .primaryKey()
+    .references(() => movements.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

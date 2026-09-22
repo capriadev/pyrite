@@ -65,6 +65,12 @@ export class TasksController {
     return this.groups.tree(TASK_DOMAIN);
   }
 
+  /** The system nodes (`finances/`): created by the code, never editable (spec 021). */
+  @Get('groups/system')
+  systemGroups(): Promise<GroupRow[]> {
+    return this.groups.systemGroups(TASK_DOMAIN);
+  }
+
   @Post('groups')
   createGroup(@Body() body: { name: string; parentId?: string | null }): Promise<GroupRow> {
     const parentId = body.parentId ? this.uuid(body.parentId) : null;

@@ -2,10 +2,14 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Po
 import {
   DisputesService,
   type DisputeView,
-  type EngineSettings,
   type RunResult,
 } from '../../bll/disputes/disputes.service';
 import { DisputesIntakeService, type MovementIntake } from '../../bll/disputes/disputes-intake.service';
+import {
+  DisputeEngineSettingsService,
+  type EngineSettings,
+} from '../../bll/disputes/dispute-engine-settings.service';
+import { DisputeResolutionsService } from '../../bll/disputes/dispute-resolutions.service';
 import type { DisputeListFilters } from '../../dal/disputes/disputes.repository';
 import { isUuid } from '../../types/guards';
 
@@ -18,6 +22,8 @@ export class DisputesController {
   constructor(
     private readonly disputes: DisputesService,
     private readonly intake: DisputesIntakeService,
+    private readonly resolutions: DisputeResolutionsService,
+    private readonly engineSettings: DisputeEngineSettingsService,
   ) {}
 
   @Get()
@@ -36,14 +42,14 @@ export class DisputesController {
 
   /** Effective engine settings: what the settings screen shows. */
   @Get('settings')
-  engineSettings(): EngineSettings {
-    return this.disputes.engineSettings();
+  engineSettingsView(): EngineSettings {
+    return this.engineSettings.current();
   }
 
   /** Only the keys present change; every value is validated before it is stored. */
   @Put('settings')
   updateEngineSettings(@Body() body: Record<string, unknown>): Promise<EngineSettings> {
-    return this.disputes.updateEngineSettings(body ?? {});
+    return this.engineSettings.update(body ?? {});
   }
 
   /** The link of one expectation: null when it is not settled. */
@@ -86,7 +92,7 @@ export class DisputesController {
   ): Promise<{ expectationId: string; status: string }> {
     const movementId = body?.movementId ? this.uuid(body.movementId) : null;
     const candidateId = body?.candidateId ? this.uuid(body.candidateId) : null;
-    return this.disputes.decideSuggestion(this.uuid(expectationId), movementId, candidateId);
+    return this.resolutions.decideSuggestion(this.uuid(expectationId), movementId, candidateId);
   }
 
   // ============ LINKS ============
@@ -97,7 +103,7 @@ export class DisputesController {
     if (!body?.expectationId || !body?.movementId) {
       throw new BadRequestException('expectationId and movementId are required');
     }
-    return this.disputes
+    return this.resolutions
       .link(this.uuid(body.expectationId), this.uuid(body.movementId))
       .then(() => ({ ok: true as const }));
   }
@@ -105,7 +111,7 @@ export class DisputesController {
   /** Unlinking frees the movement: a later run may use it again. */
   @Delete('links/:expectationId')
   unlink(@Param('expectationId') expectationId: string): Promise<{ expectationId: string; movementId: string | null }> {
-    return this.disputes.unlink(this.uuid(expectationId));
+    return this.resolutions.unlink(this.uuid(expectationId));
   }
 
   /** Undoes everything automatic and recomputes, keeping the manual answers. */
@@ -125,7 +131,7 @@ export class DisputesController {
     @Body()
     body: { resolution: string; note?: string; movementId?: string; expectationId?: string; taskStatus?: string },
   ): Promise<DisputeView> {
-    return this.disputes.resolve(this.uuid(id), body);
+    return this.resolutions.resolve(this.uuid(id), body);
   }
 
   private uuid(value: string): string {

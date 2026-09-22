@@ -11,14 +11,12 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- feature/disputes-scoring: spec 020 completa y verificada (31 aserciones del scorer, 25 chequeos HTTP); PR pendiente de abrir. Stackea sobre feature/disputes-core (PR #24, sin mergear).
-- feature/disputes-core: spec 019 completa y verificada (22 aserciones del matcher, 38 chequeos HTTP); PR #24 abierta esperando merge.
-- Spec 021 escrita como borrador sin commitear en specs/ (se commitea al iniciar).
+- Frente de disputas backend cerrado y mergeado: specs 019 (PR #24) y 020 (PR #25) en main, mas el test recuperado (PR #26).
+- Arranca la spec 021: intake desde finances con payload preconfigurado y grupo de sistema finances/ (rama feature/disputes-intake).
 - Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 31 del scorer, 6 humos HTTP; README adentro).
 
 ## Next up
-- Mergear PR #24 (disputes core) y despues la del scoring (PR #25, stackeada sobre la #24).
-- Spec 021 (intake desde finances + grupo finances/).
+- Spec 021 en curso (intake + grupo finances/).
 - Spec de refactor: separar las resoluciones y los settings de disputes.service (776 lineas; registrado en docs/records/020).
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 

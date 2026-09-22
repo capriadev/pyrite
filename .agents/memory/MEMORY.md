@@ -11,15 +11,14 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- feature/disputes-intake: spec 021 completa y verificada (30 chequeos HTTP); PR pendiente de abrir.
-- Frente de disputas backend cerrado: specs 019 y 020 mergeadas (PRs #24 y #25).
+- refactor/disputes-split: spec 022 completa y verificada (disputes.service de 775 a 159 lineas; bateria entera en verde); PR pendiente de abrir.
+- Frente de disputas backend cerrado y mergeado: specs 019, 020 y 021 (PRs #24, #25, #27) mas el test recuperado (#26).
 - Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 31 del scorer, 7 humos HTTP; README adentro).
 
 ## Next up
-- Abrir y mergear la PR del intake (spec 021).
-- Spec de refactor: separar las resoluciones y los settings de disputes.service (776 lineas; registrado en docs/records/020).
-- UI (#24): calendario, tasks y panel del motor.
-- Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
+- Abrir y mergear la PR del refactor (spec 022).
+- UI (#24): calendario, tasks y panel del motor (el usuario avisa cuando arranca el front).
+- Motor de proyecciones (pendiente del roadmap; desbloquea el desvio del plan que quedo como v2 del motor).
 
 ## Open decisions
 - satellite-services/ untracked: commitear o ignorar (local-only). Decidir al final.

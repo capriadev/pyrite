@@ -129,9 +129,11 @@ try {
   // ---------- dos candidatos: consulta, nunca adivina ----------
   const c5 = await category(`disputes-ambiguous-${stamp}`);
   const t5 = await paymentTask(`Ambigua ${stamp}`, day(-1), { mode: 'recurrente', priceFixed: true, priceAmount: '10.00', priceCurrency: 'USD' });
-  await declare(t5.body.id, c5.id);
+  // Los dos movimientos entran antes de declarar la categoria: el intake vincula al guardar, y
+  // este caso necesita que los dos candidatos esten presentes cuando corre el motor.
   await movements(c5.id, `Candidato A ${stamp}`, 10, new Date(`${day(-1)}T09:00:00Z`));
   await movements(c5.id, `Candidato B ${stamp}`, 12, new Date(`${day(0)}T09:00:00Z`));
+  await declare(t5.body.id, c5.id);
   await request('POST', '/disputes/run');
   const t5First = (await expectationsOf(t5.body.id))[0];
   const t5Candidates = (await request('GET', `/disputes/candidates/${t5First.id}`)).body ?? [];

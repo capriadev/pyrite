@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { FinancesRepository } from '../../dal/finances/finances.repository';
+import { DisputesIntakeService, type MovementIntake } from '../disputes/disputes-intake.service';
 
 export interface NewMovementInput {
   type: 'income' | 'expense';
@@ -18,11 +19,20 @@ export interface NewMovementInput {
 
 @Injectable()
 export class FinancesService {
-  constructor(private readonly repo: FinancesRepository) {}
+  private readonly log = new Logger(FinancesService.name);
+
+  constructor(
+    private readonly repo: FinancesRepository,
+    private readonly intake: DisputesIntakeService,
+  ) {}
 
   /**
    * Create a movement. If rate is not provided, compute the effective rate
    * as paidAmount/amount (immutable snapshot).
+   *
+   * The dispute engine gets a look at what was just saved (spec 021): the movement is already
+   * written, so a failure of the engine is logged and never turns into a 500 - the answer
+   * simply arrives without the intake suggestion.
    */
   async createMovement(input: NewMovementInput, rateUsed?: number): Promise<unknown> {
     const rate = rateUsed ?? (input.paidAmount / input.amount);
@@ -47,7 +57,19 @@ export class FinancesService {
     const delta = input.type === 'income' ? input.paidAmount : -input.paidAmount;
     await this.repo.setBalance(input.balanceSource, current + delta);
 
-    return movement;
+    const intake = await this.intakeAfterSave(movement.id);
+    return intake ? { ...movement, intake } : movement;
+  }
+
+  /** The engine's answer to what was just recorded, or nothing when it has nothing to say. */
+  private async intakeAfterSave(movementId: string): Promise<MovementIntake | null> {
+    try {
+      return await this.intake.intakeFor(movementId);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.log.warn(`Intake skipped for movement ${movementId}: ${message}`);
+      return null;
+    }
   }
 
   async listMovements() {
@@ -77,8 +99,18 @@ export class FinancesService {
     await this.repo.softDeleteMovement(id);
   }
 
-  async createCategory(name: string, type: 'income' | 'expense') {
-    return this.repo.createCategory(name, type);
+  async createCategory(name: string, type: 'income' | 'expense', isService = false): Promise<unknown> {
+    const trimmed = (name ?? '').trim();
+    if (!trimmed) throw new BadRequestException('category name is required');
+    return this.repo.createCategory(trimmed, type, isService === true);
+  }
+
+  /** Marks the category where services and subscriptions land: what turns the intake on. */
+  async setCategoryService(id: string, isService: unknown): Promise<unknown> {
+    const category = await this.repo.findCategory(id);
+    if (!category) throw new BadRequestException('category not found');
+    if (typeof isService !== 'boolean') throw new BadRequestException('isService must be a boolean');
+    return this.repo.setCategoryService(id, isService);
   }
 
   async listCategories() {

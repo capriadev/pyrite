@@ -11,13 +11,14 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- Frente de disputas backend cerrado y mergeado: specs 019 (PR #24) y 020 (PR #25) en main, mas el test recuperado (PR #26).
-- Arranca la spec 021: intake desde finances con payload preconfigurado y grupo de sistema finances/ (rama feature/disputes-intake).
-- Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 31 del scorer, 6 humos HTTP; README adentro).
+- feature/disputes-intake: spec 021 completa y verificada (30 chequeos HTTP); PR pendiente de abrir.
+- Frente de disputas backend cerrado: specs 019 y 020 mergeadas (PRs #24 y #25).
+- Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 31 del scorer, 7 humos HTTP; README adentro).
 
 ## Next up
-- Spec 021 en curso (intake + grupo finances/).
+- Abrir y mergear la PR del intake (spec 021).
 - Spec de refactor: separar las resoluciones y los settings de disputes.service (776 lineas; registrado en docs/records/020).
+- UI (#24): calendario, tasks y panel del motor.
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 
 ## Open decisions

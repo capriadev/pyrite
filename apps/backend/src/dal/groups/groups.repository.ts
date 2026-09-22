@@ -10,6 +10,8 @@ export interface GroupRow {
   domain: GroupDomain;
   parentId: string | null;
   name: string;
+  /** Created by the code (spec 021): never renamed, never deleted, never chosen as a parent. */
+  isSystem: boolean;
   status: string;
   createdAt: Date;
 }
@@ -28,10 +30,15 @@ export interface GroupNode extends GroupRow {
 export class GroupsRepository {
   constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDb) {}
 
-  async create(domain: GroupDomain, name: string, parentId: string | null = null): Promise<GroupRow> {
+  async create(
+    domain: GroupDomain,
+    name: string,
+    parentId: string | null = null,
+    isSystem = false,
+  ): Promise<GroupRow> {
     const inserted = await this.db
       .insert(groups)
-      .values({ domain, name, parentId })
+      .values({ domain, name, parentId, isSystem })
       .returning();
     return this.mapRow(inserted[0]);
   }
@@ -122,6 +129,7 @@ export class GroupsRepository {
       domain: r.domain as GroupDomain,
       parentId: r.parentId,
       name: r.name,
+      isSystem: r.isSystem,
       status: r.status,
       createdAt: r.createdAt,
     };

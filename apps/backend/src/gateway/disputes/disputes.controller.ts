@@ -5,6 +5,7 @@ import {
   type EngineSettings,
   type RunResult,
 } from '../../bll/disputes/disputes.service';
+import { DisputesIntakeService, type MovementIntake } from '../../bll/disputes/disputes-intake.service';
 import type { DisputeListFilters } from '../../dal/disputes/disputes.repository';
 import { isUuid } from '../../types/guards';
 
@@ -14,7 +15,10 @@ import { isUuid } from '../../types/guards';
  */
 @Controller('disputes')
 export class DisputesController {
-  constructor(private readonly disputes: DisputesService) {}
+  constructor(
+    private readonly disputes: DisputesService,
+    private readonly intake: DisputesIntakeService,
+  ) {}
 
   @Get()
   list(@Query('type') type?: string, @Query('status') status?: string): Promise<DisputeView[]> {
@@ -52,6 +56,26 @@ export class DisputesController {
   @Post('run')
   run(): Promise<RunResult> {
     return this.disputes.run();
+  }
+
+  // ============ INTAKE (spec 021) ============
+
+  /** The question about one movement, asked again on demand (the answer is never cached). */
+  @Get('intake/:movementId')
+  intakeOf(@Param('movementId') movementId: string): Promise<MovementIntake> {
+    return this.intake.intakeFor(this.uuid(movementId));
+  }
+
+  /** The user's answer: create the task with the draft, or link to the one that existed. */
+  @Post('intake/confirm')
+  confirmIntake(@Body() body: Record<string, unknown>): Promise<MovementIntake> {
+    return this.intake.confirm(body ?? {});
+  }
+
+  /** "No, it is nothing of the sort": remembered, so it is asked once. */
+  @Post('intake/dismiss')
+  dismissIntake(@Body() body: { movementId?: string }): Promise<{ movementId: string; dismissed: true }> {
+    return this.intake.dismiss(String(body?.movementId ?? ''));
   }
 
   /** Answer to a consultation: a candidate (or a movement), or none of them. */

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { FinancesService, type NewMovementInput } from '../../bll/finances/finances.service';
 
 @Controller('finances')
@@ -26,8 +26,14 @@ export class FinancesController {
   }
 
   @Post('categories')
-  createCategory(@Body() body: { name: string; type: 'income' | 'expense' }) {
-    return this.finances.createCategory(body.name, body.type);
+  createCategory(@Body() body: { name: string; type: 'income' | 'expense'; isService?: boolean }) {
+    return this.finances.createCategory(body.name, body.type, body.isService === true);
+  }
+
+  /** Marks the category where services and subscriptions land: turns the intake on for it. */
+  @Put('categories/:id/service')
+  setCategoryService(@Param('id') id: string, @Body() body: { isService: boolean }) {
+    return this.finances.setCategoryService(id, body?.isService);
   }
 
   @Get('platforms')

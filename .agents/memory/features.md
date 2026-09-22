@@ -24,6 +24,6 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #17 Notes UI - carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con pin, busqueda titulo/contenido, filtros y modal de passphrase para privadas [status: pending]
 #20 Unify Calendar + Tasks + Finances - unificacion de los tres dominios [status: pending]
 #24 Calendario y Tasks UI - vista de calendario (mes/dia), pantalla de tasks (carpetas, grupos, kanban opcional) y accesos rapidos con plantillas desde calendar [status: pending]
-#22 Logs purge - purge dedicado de logs (hoy purgeExpired() al arrancar; spec 011) [status: pending]
+#22 Logs purge - purge dedicado de logs: pasada al boot, por intervalo configurable y manual, con registro de cada corrida para metricas [spec: 023-logs-purge.md] [status: active]
 #23 Credential rotation reminder - recordatorio de rotacion de credenciales (counts.stale_days sin consumidor; spec 012) [status: pending]
 #27 Notificaciones y recordatorios - switch de aviso con unidad (segundos/minutos/horas/dias) y cantidad, mas la variante de hora previa al inicio; requiere el sistema de notificaciones [status: pending]

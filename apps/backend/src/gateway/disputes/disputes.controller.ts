@@ -1,5 +1,10 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
-import { DisputesService, type DisputeView, type RunResult } from '../../bll/disputes/disputes.service';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  DisputesService,
+  type DisputeView,
+  type EngineSettings,
+  type RunResult,
+} from '../../bll/disputes/disputes.service';
 import type { DisputeListFilters } from '../../dal/disputes/disputes.repository';
 import { isUuid } from '../../types/guards';
 
@@ -25,6 +30,18 @@ export class DisputesController {
     return this.disputes.candidatesOf(this.uuid(expectationId));
   }
 
+  /** Effective engine settings: what the settings screen shows. */
+  @Get('settings')
+  engineSettings(): EngineSettings {
+    return this.disputes.engineSettings();
+  }
+
+  /** Only the keys present change; every value is validated before it is stored. */
+  @Put('settings')
+  updateEngineSettings(@Body() body: Record<string, unknown>): Promise<EngineSettings> {
+    return this.disputes.updateEngineSettings(body ?? {});
+  }
+
   /** The link of one expectation: null when it is not settled. */
   @Get('links/:expectationId')
   linkOf(@Param('expectationId') expectationId: string) {
@@ -37,14 +54,15 @@ export class DisputesController {
     return this.disputes.run();
   }
 
-  /** Discards the consulta of an expectation: a candidate, or none of them. */
+  /** Answer to a consultation: a candidate (or a movement), or none of them. */
   @Post('suggestions/:expectationId/decide')
   decide(
     @Param('expectationId') expectationId: string,
-    @Body() body: { movementId?: string | null },
+    @Body() body: { movementId?: string | null; candidateId?: string | null },
   ): Promise<{ expectationId: string; status: string }> {
     const movementId = body?.movementId ? this.uuid(body.movementId) : null;
-    return this.disputes.decideSuggestion(this.uuid(expectationId), movementId);
+    const candidateId = body?.candidateId ? this.uuid(body.candidateId) : null;
+    return this.disputes.decideSuggestion(this.uuid(expectationId), movementId, candidateId);
   }
 
   // ============ LINKS ============

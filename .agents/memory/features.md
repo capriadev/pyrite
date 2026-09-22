@@ -23,7 +23,6 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #13 Logging system - pino + pino-roll, correlacion por reqId, redaccion de secretos, rotacion y retencion [spec: 011-logging-system.md] [status: completed]
 #17 Notes UI - carpetas, markdown avanzado + math, preview en crear/editar, orden reciente con pin, busqueda titulo/contenido, filtros y modal de passphrase para privadas [status: pending]
 #20 Unify Calendar + Tasks + Finances - unificacion de los tres dominios [status: pending]
-#28 Disputes scoring - motor probabilistico: score sobre metadata e historico por task id, confianza por candidato, auto-link opt-in, consulta que envejece [spec: 020-disputes-scoring.md] [status: active]
 #29 Disputes intake - alta de task desde finances con payload preconfigurado y grupo de sistema finances/ con destino configurable [spec: 021-disputes-intake.md] [status: pending]
 #22 Logs purge - purge dedicado de logs (hoy purgeExpired() al arrancar; spec 011) [status: pending]
 #23 Credential rotation reminder - recordatorio de rotacion de credenciales (counts.stale_days sin consumidor; spec 012) [status: pending]

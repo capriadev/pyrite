@@ -11,15 +11,16 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- feature/disputes-core: spec 019 completa y verificada (22 aserciones del matcher, 38 chequeos HTTP); PR pendiente de abrir.
-- Specs 020 y 021 escritas como borradores sin commitear en specs/ (se commitean al iniciar cada una).
-- Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 5 humos HTTP; README adentro).
+- feature/disputes-scoring: spec 020 completa y verificada (31 aserciones del scorer, 25 chequeos HTTP); PR pendiente de abrir. Stackea sobre feature/disputes-core (PR #24, sin mergear).
+- feature/disputes-core: spec 019 completa y verificada (22 aserciones del matcher, 38 chequeos HTTP); PR #24 abierta esperando merge.
+- Spec 021 escrita como borrador sin commitear en specs/ (se commitea al iniciar).
+- Verificacion del backend: `apps/backend/test/` (34 aserciones del motor, 22 del matcher, 31 del scorer, 6 humos HTTP; README adentro).
 
 ## Next up
-- Abrir la PR de feature/disputes-core y mergearla.
-- Spec 020 (scoring probabilistico) y despues 021 (intake desde finances + grupo finances/).
+- Mergear PR #24 (disputes core) y despues la del scoring.
+- Spec 021 (intake desde finances + grupo finances/).
 - Frontend: traducir el 409 de escritura durante una rotacion a un aviso con reintento (spec 013).
 
 ## Open decisions
 - satellite-services/ untracked: commitear o ignorar (local-only). Decidir al final.
-- Arbol duplicado D:\1__Programacion\1__programacion\ creado por error del editor: borrar (requiere confirmacion).
+- Arbol duplicado D:\1__Programacion\1__programacion\ creado por error del editor: borrar (requiere confirmacion dos veces).

@@ -9,6 +9,8 @@ import {
   reconciliationLinks,
   taskCategoryLinks,
   taskExpectations,
+  taskMatchHistory,
+  taskSectors,
   tasks,
 } from '../../../drizzle/schema';
 
@@ -27,9 +29,12 @@ export interface DisputeListFilters {
   status?: DisputeRow['status'];
 }
 
-/** A pending payment expectation with the title of its task: the input of one matcher pass. */
+/** A pending payment expectation with the metadata of its task: the input of one matcher pass. */
 export interface PendingExpectation extends ExpectationRow {
   taskTitle: string;
+  taskDescription: string | null;
+  taskNotes: string | null;
+  taskSectorName: string | null;
 }
 
 /**
@@ -73,14 +78,22 @@ export class DisputesRepository {
   // ============ EXPECTATIONS AND MOVEMENTS ============
 
   /**
-   * Pending payment expectations due on or before `until`. Tasks that are not active are
-   * excluded: a paused or deleted payment stops expecting money.
+   * Pending payment expectations due on or before `until`, with the metadata of their task:
+   * title, description, notes and sector are what the scorer reads. Tasks that are not active
+   * are excluded: a paused or deleted payment stops expecting money.
    */
   async listPendingPaymentExpectations(until: string): Promise<PendingExpectation[]> {
     const rows = await this.db
-      .select({ expectation: taskExpectations, taskTitle: tasks.title })
+      .select({
+        expectation: taskExpectations,
+        title: tasks.title,
+        description: tasks.description,
+        notes: tasks.notes,
+        sectorName: taskSectors.name,
+      })
       .from(taskExpectations)
       .innerJoin(tasks, eq(tasks.id, taskExpectations.taskId))
+      .leftJoin(taskSectors, eq(taskSectors.id, tasks.sectorId))
       .where(
         and(
           eq(taskExpectations.status, 'pending'),
@@ -90,7 +103,18 @@ export class DisputesRepository {
         ),
       )
       .orderBy(asc(taskExpectations.expectedOn));
-    return rows.map((row) => ({ ...row.expectation, taskTitle: row.taskTitle }));
+    return rows.map((row) => ({
+      ...row.expectation,
+      taskTitle: row.title,
+      taskDescription: row.description,
+      taskNotes: row.notes,
+      taskSectorName: row.sectorName,
+    }));
+  }
+
+  /** Every pending payment expectation of a task, whatever its date: the aging works on them. */
+  async listConstrainedExpectations(status: ExpectationRow['status']): Promise<ExpectationRow[]> {
+    return this.db.select().from(taskExpectations).where(eq(taskExpectations.status, status));
   }
 
   async findExpectation(id: string): Promise<ExpectationRow | undefined> {
@@ -232,6 +256,79 @@ export class DisputesRepository {
   async insertCandidates(rows: Array<{ expectationId: string; movementId: string; reason: string }>): Promise<void> {
     if (rows.length === 0) return;
     await this.db.insert(disputeCandidates).values(rows).onConflictDoNothing();
+  }
+
+  /** Full swap of a consultation: the ranked candidates replace whatever was there. */
+  async replaceCandidates(
+    expectationId: string,
+    rows: Array<{
+      movementId: string;
+      reason: string;
+      score: number | null;
+      rank: number | null;
+      signals: Record<string, unknown> | null;
+    }>,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.delete(disputeCandidates).where(eq(disputeCandidates.expectationId, expectationId));
+      if (rows.length > 0) {
+        await tx.insert(disputeCandidates).values(rows.map((row) => ({ expectationId, ...row })));
+      }
+    });
+  }
+
+  /** When a consultation was first raised: the clock of its aging. */
+  async oldestCandidateAt(expectationId: string): Promise<Date | null> {
+    const rows = await this.db
+      .select({ createdAt: disputeCandidates.createdAt })
+      .from(disputeCandidates)
+      .where(eq(disputeCandidates.expectationId, expectationId))
+      .orderBy(asc(disputeCandidates.createdAt))
+      .limit(1);
+    return rows[0]?.createdAt ?? null;
+  }
+
+  // ============ LEARNED HISTORY ============
+
+  async listMatchHistory(taskIds: string[]): Promise<Array<typeof taskMatchHistory.$inferSelect>> {
+    if (taskIds.length === 0) return [];
+    return this.db.select().from(taskMatchHistory).where(inArray(taskMatchHistory.taskId, taskIds));
+  }
+
+  async findMatchHistory(taskId: string): Promise<typeof taskMatchHistory.$inferSelect | undefined> {
+    const rows = await this.db.select().from(taskMatchHistory).where(eq(taskMatchHistory.taskId, taskId)).limit(1);
+    return rows[0];
+  }
+
+  /**
+   * One more confirmed link for that task id. `weight` is 2 for a human answer, because a
+   * person deciding is the strongest signal available, and 1 for an automatic link.
+   */
+  async recordMatch(
+    taskId: string,
+    delayDays: number,
+    amount: number,
+    weight: number,
+  ): Promise<typeof taskMatchHistory.$inferSelect> {
+    const current = await this.findMatchHistory(taskId);
+    const samples = (current?.sampleCount ?? 0) + weight;
+    const previousTotal = Number(current?.averageDelayDays ?? 0) * (current?.sampleCount ?? 0);
+    const average = (previousTotal + delayDays * weight) / samples;
+    const lastAmounts = [...(current?.lastAmounts ?? []), amount].slice(-5);
+    const values = {
+      taskId,
+      averageDelayDays: average.toFixed(2),
+      sampleCount: samples,
+      lastAmounts,
+      lastMatchedAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const saved = await this.db
+      .insert(taskMatchHistory)
+      .values(values)
+      .onConflictDoUpdate({ target: taskMatchHistory.taskId, set: values })
+      .returning();
+    return saved[0];
   }
 
   async deleteCandidatesForExpectation(expectationId: string): Promise<void> {

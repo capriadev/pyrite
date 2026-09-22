@@ -547,8 +547,9 @@ export const disputes = pgTable('disputes', {
 });
 
 /**
- * The candidates of a consultation, in the order the panel shows them. Spec 020 adds the
- * score, the rank and the signals that sustained each one; here the reason is textual.
+ * The candidates of a consultation, in the order the panel shows them: spec 020 adds the score,
+ * the rank and the signals that sustained each one (title, description, note or user), which is
+ * what a human reads before answering.
  */
 export const disputeCandidates = pgTable('dispute_candidates', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -559,7 +560,32 @@ export const disputeCandidates = pgTable('dispute_candidates', {
     .notNull()
     .references(() => movements.id, { onDelete: 'cascade' }),
   reason: text('reason').notNull(),
+  /** Confidence of the candidate, 0-100; null in rows written before spec 020. */
+  score: integer('score'),
+  /** 1 is the best candidate of its consultation. */
+  rank: integer('rank'),
+  /** Which signal contributed and how much: what the panel explains. */
+  signals: jsonb('signals').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique('dispute_candidates_pair_key').on(t.expectationId, t.movementId),
 ]);
+
+/**
+ * What the engine learned from the confirmed links of one task id (spec 020): how late that
+ * task usually pays, how many samples sustain it, the last amounts seen and when it matched
+ * last. History belongs to the id, never to the name: a cancelled task and a new one with the
+ * same name are different ids with different histories, and a stale history never auto-links.
+ */
+export const taskMatchHistory = pgTable('task_match_history', {
+  taskId: uuid('task_id')
+    .primaryKey()
+    .references(() => tasks.id, { onDelete: 'cascade' }),
+  /** Average delay in days learned from confirmed links: negative is early, positive late. */
+  averageDelayDays: numeric('average_delay_days', { precision: 6, scale: 2 }).notNull().default('0'),
+  sampleCount: integer('sample_count').notNull().default(0),
+  /** The last amounts seen, newest last: what a rotating price is compared against. */
+  lastAmounts: jsonb('last_amounts').$type<number[]>().notNull().default([]),
+  lastMatchedAt: timestamp('last_matched_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

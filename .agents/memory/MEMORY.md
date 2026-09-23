@@ -11,14 +11,15 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
+- feature/logs-viewer: spec 024 completa y verificada (44 aserciones puras, 39 chequeos HTTP); PR pendiente de abrir sobre la rama del purge.
 - feature/logs-purge: spec 023 completa y verificada (19 aserciones puras, 23 chequeos HTTP); PR #29 abierta esperando merge.
 - Frente de disputas backend mergeado: specs 019, 020, 021 y 022 (PRs #24, #25, #27, #28) mas el test recuperado (#26).
-- Verificacion del backend: `apps/backend/test/` (34 + 22 + 31 + 19 aserciones y 8 humos HTTP; README adentro).
+- Verificacion del backend: `apps/backend/test/` (34 + 22 + 31 + 19 + 44 aserciones y 9 humos HTTP; README adentro).
 
 ## Next up
-- Mergear la PR #29 (purge de logs).
+- Mergear la PR #29 (purge de logs) y despues la del visor, en ese orden.
 - #23 recordatorio de rotacion de credenciales (pendiente chico, backend).
-- Pendientes registrados sin implementar: #31 integridad financiera (drift de balance) y #32 visor de logs del front.
+- Pendientes registrados sin implementar: #31 integridad financiera (drift de balance).
 - UI (#24): el usuario avisa cuando arranca el front.
 
 ## Open decisions

@@ -27,4 +27,4 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #23 Credential rotation reminder - recordatorio de rotacion de credenciales (counts.stale_days sin consumidor; spec 012) [status: pending]
 #27 Notificaciones y recordatorios - switch de aviso con unidad (segundos/minutos/horas/dias) y cantidad, mas la variante de hora previa al inicio; requiere el sistema de notificaciones [status: pending]
 #31 Finances integrity engine - drift de balance: recalcular cada balance_key desde los movimientos y reportar el desfase, con correccion opcional [status: pending]
-#32 Logs viewer - endpoints de lectura de logs para el front: listar archivos, filtrar por nivel y fecha, tail con limite [status: pending]
+#32 Logs viewer - endpoints de lectura de logs para el front: listar archivos, filtrar por nivel y fecha, tail con limite [spec: 024-logs-viewer.md] [status: active]

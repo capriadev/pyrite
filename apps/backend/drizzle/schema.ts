@@ -607,3 +607,28 @@ export const disputeIntakeDismissals = pgTable('dispute_intake_dismissals', {
     .references(() => movements.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ============================================================
+// Logs (spec 023)
+// ============================================================
+
+/** What triggered a retention pass: the boot, the configured interval, or a person. */
+export const logPurgeOriginEnum = pgEnum('log_purge_origin', ['boot', 'interval', 'manual']);
+
+/**
+ * One retention pass. It is both the metrics of what was freed and the clock of the interval:
+ * reading the last row is what tells the scheduler how long ago the purge ran, which is what
+ * makes the interval survive a restart and change without rescheduling anything.
+ */
+export const logPurgeRuns = pgTable('log_purge_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  origin: logPurgeOriginEnum('origin').notNull(),
+  retentionDays: integer('retention_days').notNull(),
+  /** Files removed and bytes freed; skipped counts the locked ones. */
+  files: integer('files').notNull().default(0),
+  bytes: numeric('bytes', { precision: 20, scale: 0 }).notNull().default('0'),
+  skipped: integer('skipped').notNull().default(0),
+  dir: text('dir').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }).notNull().defaultNow(),
+});

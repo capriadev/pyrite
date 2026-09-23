@@ -47,6 +47,13 @@ file is the evidence.
   `errors.*.1.log` exist) made the resume skip a file. The walk and the resume now use the same
   (date, segment, name) comparison, verified with three files paginated in pages of two.
 
-## Not verified
+## Deviations from the spec
+
+- **A separate service instead of growing `LogsService`**: the spec said the existing service would
+  grow the read side; the implementation put it in `log-viewer.service.ts` (149 lines) so neither
+  file passes a size that hides the other responsibility. `LogsService` stays retention only, and
+  the gateway controller takes both. Same reason as the split of the disputes service (spec 022):
+  one file, one responsibility.
+
 
 Live browser flow: the screen that lists the files, filters and tails is UI (#24).

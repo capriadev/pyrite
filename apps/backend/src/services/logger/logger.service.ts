@@ -1,5 +1,4 @@
 import { Injectable, type LoggerService as NestLoggerService } from '@nestjs/common';
-import { readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import pino, {
   multistream,
@@ -42,8 +41,11 @@ export class LoggerService implements NestLoggerService {
   /** Worker-thread transports created for pino-roll, closed on shutdown. */
   private transports: ReturnType<typeof pino.transport>[] = [];
 
+  /**
+   * Opens the rotating files. Retention is not this service's job any more (spec 023): the
+   * dedicated pass runs at boot through `LogsService`, which also records what it freed.
+   */
   async init(): Promise<void> {
-    await this.purgeExpired();
     this.baseLogger = await this.buildLogger('backend');
     this.errorLogger = await this.buildLogger(ERROR_LABEL);
   }
@@ -153,36 +155,5 @@ export class LoggerService implements NestLoggerService {
       }
     }
     this.transports = [];
-  }
-
-  /** Removes log files whose date is older than the retention window. */
-  private async purgeExpired(): Promise<void> {
-    const cutoff = Date.now() - loggerConfig.retentionDays * 86_400_000;
-    let entries: string[];
-    try {
-      entries = readdirSync(loggerConfig.dir);
-    } catch {
-      return;
-    }
-    for (const name of entries) {
-      const date = this.parseFileDate(name);
-      if (date === null || date >= cutoff) continue;
-      try {
-        unlinkSync(join(loggerConfig.dir, name));
-      } catch {
-        // a locked or missing file must not block boot
-      }
-    }
-  }
-
-  /** Extracts the yyyyMMdd date embedded in a log filename, if present. */
-  private parseFileDate(name: string): number | null {
-    const match = /\.(\d{8})\./.exec(name);
-    if (!match) return null;
-    const y = Number(match[1].slice(0, 4));
-    const m = Number(match[1].slice(4, 6)) - 1;
-    const d = Number(match[1].slice(6, 8));
-    const time = new Date(y, m, d).getTime();
-    return Number.isNaN(time) ? null : time;
   }
 }

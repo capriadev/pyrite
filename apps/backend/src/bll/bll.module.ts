@@ -10,6 +10,7 @@ import { CountsService } from './counts/counts.service';
 import { CountsAuditsService } from './counts/counts-audits.service';
 import { TasksService } from './tasks/tasks.service';
 import { CalendarService } from './calendar/calendar.service';
+import { LogsService } from './logs/logs.service';
 import { DisputesService } from './disputes/disputes.service';
 import { DisputePassService } from './disputes/dispute-pass.service';
 import { DisputesIntakeService } from './disputes/disputes-intake.service';
@@ -25,7 +26,7 @@ import { SectionWriteGuard } from './rotation/section-write-guard';
 @Global()
 @Module({
   imports: [DalModule],
-  providers: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, CountsAuditsService, TasksService, CalendarService, DisputePassService, DisputesService, DisputesIntakeService, DisputeResolutionsService, DisputeEngineSettingsService, RotationService, SectionWriteGuard],
-  exports: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, CountsAuditsService, TasksService, CalendarService, DisputePassService, DisputesService, DisputesIntakeService, DisputeResolutionsService, DisputeEngineSettingsService, RotationService, SectionWriteGuard],
+  providers: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, CountsAuditsService, TasksService, CalendarService, DisputePassService, DisputesService, DisputesIntakeService, DisputeResolutionsService, DisputeEngineSettingsService, LogsService, RotationService, SectionWriteGuard],
+  exports: [SettingsService, FinancesService, RatesService, ApiKeysService, GroupsService, NotesService, CountsService, CountsAuditsService, TasksService, CalendarService, DisputePassService, DisputesService, DisputesIntakeService, DisputeResolutionsService, DisputeEngineSettingsService, LogsService, RotationService, SectionWriteGuard],
 })
 export class BllModule {}

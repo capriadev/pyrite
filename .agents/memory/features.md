@@ -1,6 +1,6 @@
 # Features - SDD index | delete when complete | new ID = last_id + 1
 
-last_id: 34
+last_id: 35
 
 <!--
 One line per feature. Planned features may be registered here without a spec yet (status: pending); a spec is opened when the feature is planned and ready to develop. When a feature is COMPLETE: remove its line here and mark the spec status as completed. SPECS ARE NEVER DELETED - specs/ is a permanent registry, the numbering exists for that. Never reuse an ID; last_id only grows.
@@ -28,3 +28,4 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #27 Notificaciones y recordatorios - switch de aviso con unidad (segundos/minutos/horas/dias) y cantidad, mas la variante de hora previa al inicio; requiere el sistema de notificaciones [status: pending]
 #33 Finances multi-moneda - monedas como catalogo (tabla con detalle) y balances como pivote moneda x tipo de tenencia, para sumar EUR y otras sin migrar por moneda; las cotizaciones pasan a llevar el par base/quote [status: pending]
 #34 Finances multi-entrada - registrar varios movimientos en una operacion (cola FIFO u optimistic locking con version) [status: pending]
+#35 Domain decoupling - desacoplar finances del intake de disputas, los helpers de fecha del matcher y calendar del repositorio de tasks; saldo atomico [spec: 025-domain-decoupling.md] [status: active]

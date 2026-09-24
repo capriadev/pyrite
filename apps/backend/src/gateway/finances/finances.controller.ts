@@ -1,18 +1,29 @@
 import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { FinancesService, type NewMovementInput } from '../../bll/finances/finances.service';
+import { DisputesIntakeService } from '../../bll/disputes/disputes-intake.service';
 
 @Controller('finances')
 export class FinancesController {
-  constructor(private readonly finances: FinancesService) {}
+  constructor(
+    private readonly finances: FinancesService,
+    private readonly intake: DisputesIntakeService,
+  ) {}
 
   @Get('movements')
   listMovements() {
     return this.finances.listMovements();
   }
 
+  /**
+   * The movement is saved by finances and then shown to the dispute engine (spec 025): the
+   * composition lives here, in the gateway, so the finances domain does not import the engine and
+   * the engine's answer is an extra on the response, never a condition to save.
+   */
   @Post('movements')
-  createMovement(@Body() body: NewMovementInput & { rateUsed?: number }) {
-    return this.finances.createMovement(body, body.rateUsed);
+  async createMovement(@Body() body: NewMovementInput & { rateUsed?: number }) {
+    const movement = (await this.finances.createMovement(body, body.rateUsed)) as { id: string };
+    const intake = await this.intake.intakeForSaved(movement.id);
+    return intake ? { ...movement, intake } : movement;
   }
 
   @Delete('movements/:id')

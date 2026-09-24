@@ -11,15 +11,15 @@ Update at session close. This is not a changelog: it is the state of the work.
 -->
 
 ## State (in flight)
-- feature/logs-viewer: spec 024 completa y verificada (44 aserciones puras, 39 chequeos HTTP); PR pendiente de abrir sobre la rama del purge.
-- feature/logs-purge: spec 023 completa y verificada (19 aserciones puras, 23 chequeos HTTP); PR #29 abierta esperando merge.
-- Frente de disputas backend mergeado: specs 019, 020, 021 y 022 (PRs #24, #25, #27, #28) mas el test recuperado (#26).
-- Verificacion del backend: `apps/backend/test/` (34 + 22 + 31 + 19 + 44 aserciones y 9 humos HTTP; README adentro).
+- refactor/domain-decoupling: spec 025 completa y verificada (10 chequeos HTTP, saldo atomico probado contra el defecto viejo); PR pendiente de abrir.
+- Mergeado en main: specs 022, 023 y 024 (PRs #30 y #31) mas el frente de disputas (019, 020, 021).
+- Verificacion del backend: `apps/backend/test/` (34 + 22 + 31 + 19 + 44 aserciones y 10 humos HTTP; README adentro).
+- Modulos puros copiables a otro proyecto (auditados en la 025): motores de recurrencia, matcher, scorer, retencion y lectura de logs, guards, types/dates, crypto, integrations.
 
 ## Next up
-- Mergear la PR #29 (purge de logs) y despues la del visor, en ese orden.
-- #23 recordatorio de rotacion de credenciales (pendiente chico, backend).
-- Pendientes registrados sin implementar: #31 integridad financiera (drift de balance).
+- #33 Finances multi-moneda: el diseno acordado es tabla de monedas con detalle + balances como pivote moneda x tipo de tenencia, y el par base/quote en las cotizaciones.
+- #34 Finances multi-entrada (cola FIFO u optimistic locking), #23 recordatorio de rotacion, #27 notificaciones.
+- Pendientes registrados sin implementar: ninguno mas alla de los de arriba.
 - UI (#24): el usuario avisa cuando arranca el front.
 
 ## Open decisions

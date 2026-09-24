@@ -5,7 +5,7 @@ import {
   type MovementRow,
 } from '../../dal/disputes/disputes.repository';
 import { SettingsService } from '../settings/settings.service';
-import { addDays } from '../tasks/recurrence-engine';
+import { addDays } from '../../types/dates';
 import { requireUuid } from './dispute-params';
 import {
   autoLinkConfig,

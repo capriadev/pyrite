@@ -1,4 +1,4 @@
-import { addDays, isoDay } from '../tasks/recurrence-engine';
+import { addDays, isoDay } from '../../types/dates';
 
 /**
  * Deterministic heart of the dispute engine (spec 019). It receives data and returns a

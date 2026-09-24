@@ -28,4 +28,3 @@ Format: #<id> <name> - <one-line summary> [spec: <file>] [status: pending|active
 #27 Notificaciones y recordatorios - switch de aviso con unidad (segundos/minutos/horas/dias) y cantidad, mas la variante de hora previa al inicio; requiere el sistema de notificaciones [status: pending]
 #33 Finances multi-moneda - monedas como catalogo (tabla con detalle) y balances como pivote moneda x tipo de tenencia, para sumar EUR y otras sin migrar por moneda; las cotizaciones pasan a llevar el par base/quote [status: pending]
 #34 Finances multi-entrada - registrar varios movimientos en una operacion (cola FIFO u optimistic locking con version) [status: pending]
-#35 Domain decoupling - desacoplar finances del intake de disputas, los helpers de fecha del matcher y calendar del repositorio de tasks; saldo atomico [spec: 025-domain-decoupling.md] [status: active]

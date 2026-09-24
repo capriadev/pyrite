@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { TasksRepository, type TaskExpectationRow, type TaskRow } from '../../dal/tasks/tasks.repository';
+import { TasksService, type CalendarInput } from '../tasks/tasks.service';
+import type { TaskExpectationRow, TaskRow } from '../../dal/tasks/tasks.repository';
 import { isIsoDay } from '../../types/guards';
 
 /** One thing the calendar renders on a day: an expectation of any task type. */
@@ -28,10 +29,13 @@ export interface CalendarDay {
  * Read-only view of the calendar (spec 015). Calendar has no logic of its own:
  * it aggregates the expectations that tasks already computed, so a read never
  * re-evaluates a rule and an amount shown here is always an estimate.
+ *
+ * It asks the tasks domain for that material (spec 025) instead of reading its
+ * repository: a change in how tasks stores things stays inside tasks.
  */
 @Injectable()
 export class CalendarService {
-  constructor(private readonly repo: TasksRepository) {}
+  constructor(private readonly tasks: TasksService) {}
 
   /** Day-by-day aggregation for a range, days without entries included only when asked. */
   async range(from: string, to: string): Promise<CalendarDay[]> {
@@ -39,12 +43,8 @@ export class CalendarService {
     if (!isIsoDay(to)) throw new BadRequestException('invalid to');
     if (to < from) throw new BadRequestException('to must not be before from');
 
-    const [expectations, punctual] = await Promise.all([
-      this.repo.listExpectationsInRange(from, to),
-      this.repo.list({ type: 'puntual', from, to }),
-    ]);
-    const ids = [...new Set([...expectations.map((row) => row.taskId), ...punctual.map((row) => row.id)])];
-    const byId = new Map((await this.repo.listByIds(ids)).map((task) => [task.id, task]));
+    const { expectations, punctual, tasks }: CalendarInput = await this.tasks.calendarInput(from, to);
+    const byId = new Map(tasks.map((task) => [task.id, task]));
 
     const days = new Map<string, CalendarEntry[]>();
     const covered = new Set<string>();

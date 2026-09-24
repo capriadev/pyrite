@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { DRIZZLE_DB, type DrizzleDb } from '../drizzle.provider';
 import { movements, categories, platforms, balances } from '../../../drizzle/schema';
 
@@ -84,5 +84,24 @@ export class FinancesRepository {
       .insert(balances)
       .values({ key: key as never, amount: String(amount) })
       .onConflictDoUpdate({ target: balances.key, set: { amount: String(amount) } });
+  }
+
+  /**
+   * Moves a balance by a delta with the arithmetic done in SQL (spec 025). The previous
+   * read-modify-write lost a delta when two writes interleaved: both read the same value and the
+   * second overwrote the first. Here the row is updated in one statement, so concurrent deltas add
+   * up. A missing row starts at the delta itself.
+   */
+  async incrementBalance(key: string, delta: number): Promise<void> {
+    await this.db
+      .insert(balances)
+      .values({ key: key as never, amount: String(delta) })
+      .onConflictDoUpdate({
+        target: balances.key,
+        set: {
+          amount: sql`${balances.amount} + ${String(delta)}::numeric`,
+          updatedAt: new Date(),
+        },
+      });
   }
 }

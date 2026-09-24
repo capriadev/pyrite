@@ -99,15 +99,15 @@ This file is an index, entry point, and project methodology. It does not contain
   ```
 
 ### Discarded - `.agents/memory/discarded/`
-- Create a file when a decision, integration, or feature was evaluated (before or after implementation) and abandoned, and the reasoning has future reference value - avoids re-litigating or re-attempting the same idea blindly.
+- Create a file only when something that **was already built** (running in production, even if only locally) is removed, replaced or changed into something else, and the reasoning has future reference value - it records what stood and why it stopped standing, so nobody rebuilds it blind.
+- An idea that never went past the plan does **not** belong here: it lives in the spec, in the index (`status: pending`) or in the plan notes. A discarded entry means there was code.
 - Naming: `<descriptive-slug>.md`. Register it in `discarded/_INDEX.md`.
-- Purpose: document what was tried and why it didn't stick - "we considered/built X, here's why it's not in Pyrite".
 - Format:
   ```markdown
   # <Discarded item>
 
-  ## What was tried
-  <what was evaluated or implemented>
+  ## What existed
+  <what was built and running>
 
   ## Why it was discarded
   <the actual reason - technical, product, complexity, etc.>

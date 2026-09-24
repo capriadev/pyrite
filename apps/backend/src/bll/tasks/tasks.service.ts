@@ -16,8 +16,7 @@ import {
 import { TaskSectorsRepository, type TaskSectorRow } from '../../dal/tasks/task-sectors.repository';
 import { GroupsService } from '../groups/groups.service';
 import { isIsoDay, isUuid } from '../../types/guards';
-import { addDays, isoDay } from '../../types/dates';
-import { MATERIALIZATION_HORIZON_DAYS, MATERIALIZATION_LOOKBACK_DAYS, occurrencesOf } from './recurrence-engine';
+import { MATERIALIZATION_HORIZON_DAYS, MATERIALIZATION_LOOKBACK_DAYS, addDays, isoDay, occurrencesOf } from './recurrence-engine';
 import {
   isCurrency,
   isFrequencyUnit,
@@ -43,13 +42,6 @@ import {
 
 /** Domain of the group tree this service owns; other domains keep their own namespace. */
 const TASK_DOMAIN = 'tasks';
-
-/** What the calendar needs to render a range (spec 025): expectations, punctual tasks and their tasks. */
-export interface CalendarInput {
-  expectations: TaskExpectationRow[];
-  punctual: TaskRow[];
-  tasks: TaskRow[];
-}
 
 /** One task as the API returns it: shell, ficha, rule, payload and tiers together. */
 export interface TaskView {
@@ -232,23 +224,6 @@ export class TasksService {
   async expectations(id: string): Promise<TaskExpectationRow[]> {
     await this.requireAggregate(id);
     return this.repo.listExpectations(id);
-  }
-
-  /**
-   * The raw material the calendar aggregates (spec 025): the expectations of the range, the puntual
-   * tasks that start inside it and the tasks those rows point to. Calendar asks its domain for this
-   * instead of reading the repository, so a change in how tasks stores cannot change calendar
-   * silently.
-   */
-  async calendarInput(from: string, to: string): Promise<CalendarInput> {
-    const [expectations, punctual] = await Promise.all([
-      this.repo.listExpectationsInRange(from, to),
-      this.repo.list({ type: 'puntual', from, to }),
-    ]);
-    const ids = [
-      ...new Set([...expectations.map((row) => row.taskId), ...punctual.map((row) => row.id)]),
-    ];
-    return { expectations, punctual, tasks: await this.repo.listByIds(ids) };
   }
 
   // ============ MATERIALIZATION ============

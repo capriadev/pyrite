@@ -25,10 +25,9 @@ node apps/backend/test/smoke-020-scoring.mjs      # scoring, historial aprendido
 node apps/backend/test/smoke-021-intake.mjs       # intake desde finances y grupo de sistema
 node apps/backend/test/smoke-023-logs.mjs         # retencion de logs: boot, intervalo, manual y metricas
 node apps/backend/test/smoke-024-logs-viewer.mjs  # visor de logs: listado, filtros, paginacion, tail y descarga
-node apps/backend/test/smoke-025-decoupling.mjs   # saldo atomico (ocho escrituras simultaneas), borrado e intake
 ```
 
-Cada humo usa su propio puerto (30086 a 30099) y sale con codigo 0 solo si todo pasa.
+Cada humo usa su propio puerto (30088 a 30099) y sale con codigo 0 solo si todo pasa.
 
 ## Requisitos
 
@@ -43,9 +42,9 @@ Cada humo usa su propio puerto (30086 a 30099) y sale con codigo 0 solo si todo 
   nombres de grupo llevan sufijo por corrida para que se puedan repetir sin chocar con los de
   la vez anterior.
 - Los numeros de cobertura quedan en `docs/records/`: 34 aserciones del motor de recurrencia, 22
-  del matcher de disputas, 31 del scorer, 19 de la retencion de logs, 44 del lector de logs, y 226
-  chequeos HTTP repartidos en los diez humos (calendario 18, organizacion 17, fechas 15, pagos 11,
-  disputas 38, scoring 25, intake 30, logs 23, visor 39, desacoplamiento 10).
+  del matcher de disputas, 31 del scorer, 19 de la retencion de logs, 44 del lector de logs, y 216
+  chequeos HTTP repartidos en los nueve humos (calendario 18, organizacion 17, fechas 15, pagos 11,
+  disputas 38, scoring 25, intake 30, logs 23, visor 39).
 - Los numeros de cada script se cuentan con `node temp/count-pass.mjs` (scratch) o mirando el
   listado de PASS que imprime cada corrida.
 - CI todavia no los corre: haria falta un servicio de Postgres en el workflow. Queda anotado

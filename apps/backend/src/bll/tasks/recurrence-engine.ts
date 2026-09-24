@@ -1,5 +1,4 @@
 import type { Currency, TaskAggregate, TaskPriceTierRow, TaskRecurrenceRow } from '../../dal/tasks/tasks.repository';
-import { addDays, isoDay } from '../../types/dates';
 
 /**
  * The business-rule evaluation of the calendar (spec 015): given a task, its
@@ -7,9 +6,6 @@ import { addDays, isoDay } from '../../types/dates';
  * exist in a window and what estimate applies to each. Pure computation: no
  * persistence, no DI and no clock - the window arrives as a parameter, which is
  * what makes it idempotent and testable.
- *
- * The day arithmetic it uses comes from `types/dates` (spec 025), shared with the
- * dispute engine: a date helper is not a task concept.
  */
 
 export interface Occurrence {
@@ -38,6 +34,16 @@ export const MATERIALIZATION_LOOKBACK_DAYS = 90;
 
 /** Guard against a malformed rule turning the walk into an infinite loop. */
 const MAX_OCCURRENCES_PER_PASS = 1000;
+
+export function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function addDays(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return isoDay(date);
+}
 
 /** Month arithmetic clamps to the last day, so a charge on the 31st survives February. */
 export function addMonths(day: string, months: number): string {

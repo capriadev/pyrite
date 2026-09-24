@@ -57,22 +57,6 @@ export class DisputesIntakeService {
     private readonly settings: SettingsService,
   ) {}
 
-  /**
-   * The intake as a step after someone else saved the movement (spec 025). Finances used to call
-   * the engine itself, which made a base domain depend on a later one; the gateway composes them
-   * now and asks for this. A failure is logged and answers null: the movement is already written,
-   * so the engine never turns a save into an error.
-   */
-  async intakeForSaved(movementId: string): Promise<MovementIntake | null> {
-    try {
-      return await this.intakeFor(movementId);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.log.warn(`Intake skipped for movement ${movementId}: ${message}`);
-      return null;
-    }
-  }
-
   /** The decision for one movement. `none` means the engine has nothing to say. */
   async intakeFor(movementId: string): Promise<MovementIntake> {
     const movement = await this.repo.findMovement(movementId);

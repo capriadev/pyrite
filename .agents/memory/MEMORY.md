@@ -17,9 +17,9 @@ Update at session close. This is not a changelog: it is the state of the work.
 - Modulos puros copiables a otro proyecto (auditados en la 025): motores de recurrencia, matcher, scorer, retencion y lectura de logs, guards, types/dates, crypto, integrations.
 
 ## Next up
-- #33 Finances multi-moneda: el diseno acordado es tabla de monedas con detalle + balances como pivote moneda x tipo de tenencia, y el par base/quote en las cotizaciones.
-- #34 Finances multi-entrada (cola FIFO u optimistic locking), #23 recordatorio de rotacion, #27 notificaciones.
-- Pendientes registrados sin implementar: ninguno mas alla de los de arriba.
+- Mergear la PR #35 (desacoplamiento + saldo atomico) y despues la de multi-moneda, en ese orden.
+- #37 Rates pair and base currency: segunda mitad del frente multi-moneda (spec 027).
+- #34 Finances multi-entrada, #23 recordatorio de rotacion, #27 notificaciones.
 - UI (#24): el usuario avisa cuando arranca el front.
 
 ## Open decisions

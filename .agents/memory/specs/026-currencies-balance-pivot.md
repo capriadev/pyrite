@@ -22,10 +22,21 @@ ready to add a currency as a row instead of a migration.
 
 - In scope: the `currencies` catalog (system level, seeded), the `wallet_type` enum, `balances` as a
   pivot, `movements` pointing at currency + flow, the data migration, `getBalances` without
-  hardcoded keys, and read endpoints for the catalog.
-- Out of scope: rates with base/quote and the base-currency setting (027); tasks and the dispute
-  intake in other currencies (028); assets like shares, crypto or gold, which are quantity plus
-  valuation and have their own mechanics (#36); the UI (#9).
+  hardcoded keys, read endpoints for the catalog, and **the currency as a single concept across the
+  backend**: `task_payments.currency` moves to the catalog too and `currencyEnum` disappears, because
+  leaving the enum alive for tasks while finances uses the catalog would be two representations of
+  the same thing (which the repo forbids).
+- Out of scope: rates with base/quote and the base-currency setting (027); assets like shares, crypto
+  or gold, which are quantity plus valuation and have their own mechanics (#36); the UI (#9).
+
+## The cut, after this decision
+
+The multi-currency front is covered by **two** specs:
+
+- **026** (this one): currencies, the two axes, the migration, and the currency as the single concept
+  the whole backend shares.
+- **027**: rates with base/quote, the base-currency setting, and picking the right rate for a pair.
+
 
 ## Approach
 
@@ -45,14 +56,23 @@ expected on this axis.
 `balances` becomes a pivot with a composite primary key `(currency_code, wallet_type)`, with
 `currency_code` referencing the catalog. The two axes are explicit and the currency is data.
 
-### Movements
+### Movements and payments
 
 - `balance_source` (four-key enum) is replaced by `currency_code` (text, referencing the catalog)
   plus `wallet_type`.
 - `amount_currency` and `paid_currency` (enums) become text referencing the catalog.
+- `task_payments.currency` (the enum) does the same: the price of a payment is any catalog currency.
+- `currencyEnum` is deleted: after this, a currency is a code from the catalog everywhere.
 
-Both changes land here, in one pass, so the table is migrated once: tasks and the intake keep their
-own validation for spec 028.
+Every change lands here in one pass so each table is migrated once.
+
+### One list of valid codes
+
+The catalog is part of the system, so **the valid codes are a system constant** (the same list the
+migration seeds) and `currencies` is its persistent side: names, symbols, decimals, order and
+`isActive`. That keeps boundary validation synchronous (a currency outside the list is a 400) with a
+single source of truth, instead of turning every validator into a database read.
+
 
 ### Data migration
 
@@ -76,12 +96,15 @@ receives the same shape. The endpoints of the catalog are read-only.
 
 - [ ] The catalog holds ARS, USD and EUR with name, symbol and decimals, and no endpoint can modify
       it.
+- [ ] `currencyEnum` no longer exists: no table keeps a currency as an enum.
 - [ ] The four existing balances keep their exact amount after the migration (ARS/cash, ARS/digital,
       USD/cash, USD/digital).
 - [ ] A movement created in EUR moves the EUR balance of the flow it names and touches no other.
-- [ ] Movements created before the migration keep their currency and their translated flow.
+- [ ] A payment task whose price is in EUR is accepted, and its currency survives a round trip.
+- [ ] Movements and payments saved before the migration keep their currency and their translated
+      flow.
 - [ ] `getBalances` has no currency or flow hardcoded.
-- [ ] A movement naming a currency outside the catalog is rejected with 400.
+- [ ] A movement or a payment naming a currency outside the catalog is rejected with 400.
 - [ ] The existing smokes stay green with their payloads updated to the new shape.
 - [ ] `npm run tsc` and `npm run build` pass.
 
@@ -89,9 +112,10 @@ receives the same shape. The endpoints of the catalog are read-only.
 
 - Migration: the four balance amounts are measured with SQL before and after, and compared (same
   method as spec 018).
-- New smoke (`026-currencies-balance-pivot`): a movement in EUR cash and another in USD digital,
-  with the balances checked per pair, and the catalog read through its endpoint.
-- Full battery: the five assertion suites and the ten previous smokes, with the finances payloads
-  updated.
+- New smoke (`026-currencies-balance-pivot`): a movement in EUR cash and another in USD digital, with
+  the balances checked per pair, the catalog read through its endpoint, and a payment task priced in
+  EUR.
+- Full battery: the five assertion suites and the ten previous smokes, with the finances and tasks
+  payloads updated.
 
 Result and measurements: `docs/records/026-currencies-balance-pivot.md`.
